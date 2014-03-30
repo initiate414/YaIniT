@@ -1,0 +1,9 @@
+#
+DEFAULT_SYSFILEDRIVERS="fscache cachefiles mbcache autofs4 autofs loop brd squashfs"
+#
+DEFAULT_FILEDRIVERS="jbd2 ext4 jbd ext3 ext2 reiserfs xfs vfat"
+#
+DEFAULT_LAYERFSDRIVERS="unionfs aufs overlayfs"
+#
+DEFAULT_OPTICALDRIVERS="sr_mod isofs cdromfs iso9660 udf"
+#

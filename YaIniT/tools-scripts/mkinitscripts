@@ -1,0 +1,77 @@
+#!bin/busybox ash
+# (C) Dieter Miosga 08.2013 - 3.12.2013
+EXTENT="$1"
+ISF=0
+MKEXTENT="xz"
+ALLINITSCRIPTS=""
+INITSCRIPTS=""
+ALLMKEXTENTS="gz xz bz2 lzma lz"
+
+if [ -e yainitdefaults ]; then
+  source yainitdefaults
+else
+  echo "essential parameters from file 'yainitdefault' cannot be read!"
+  echo "exiting (127)"
+  exit 127
+fi
+
+
+if [ "$1" != "" ]; then
+   EXTENT="$1"
+else
+  EXTENT=$MKEXTENT
+fi
+
+if [ "$INITSCRIPTFILE" = "" ]; then
+   INITSCRIPTFILE="initscripts"
+fi
+
+
+if [ "`echo "$ALLMKEXTENTS" | bin/busybox grep "$EXTENT" 2>/dev/null`" != "" ]; then
+  if [ "$VERSION" != "" ]; then
+      YAINITKERNVER="$VERSION"
+  fi
+  ALLINITSCRIPTS="`bin/busybox ls -1  * 2>/dev/null | bin/busybox tr "\n" " " 2>/dev/null`"
+  INITSCRIPTS=""
+  for FILE in $ALLINITSCRIPTS; do
+    if [ -e $FILE ]; then
+      # exclude *.tar.* and *.sfs files
+      if [ "${FILE%.tar.*}" = "$FILE" -a "${FILE%.sfs}" = "$FILE" -a "$FILE" != "init"  ]; then
+        echo "adding : '$FILE'"
+        INITSCRIPTS="$INITSCRIPTS $FILE"
+      fi
+    fi
+  done
+  FILE=$INITSCRIPTFILE.tar
+  echo "constructing tar file '$FILE'"
+  echo "with init scripts: '$INITSCRIPTS'" 
+  /bin/busybox tar -vcf $FILE  $INITSCRIPTS  2>/dev/null
+  RC=$?
+  case $EXTENT in
+    gz)
+      gzip  -vf9 < $FILE >  $FILE.gz
+      RC=$?
+    ;;
+    bz2)
+      bzip2 -zfv9  $FILE
+      RC=$?
+    ;;
+    xz)
+      xz -zfev9  $FILE
+      RC=$?
+    ;;
+    lzma)
+      lzma -zfev9  $FILE
+      RC=$?
+    ;;
+    #lz)
+    #  :
+    #;;
+  esac
+  /bin/busybox tar -czf initbin.tar.gz  bin/ init rt.tar.xz  2>/dev/null
+  exit $RC
+fi
+#
+exit 0
+#
+

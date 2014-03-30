@@ -1,0 +1,442 @@
+#
+#  INIT-FUNCTIONS for Universal INIT with busybox
+#  (C) Dieter Miosga , 2008-2014-03-31 
+#
+#set -x
+#
+echofile()
+{
+  local  SCRIPT
+  # the //scriptname form of scriptname remained
+  # for some kernel internal reason
+  # set quiet parameter on cmdline to stop any system messages from init script
+  [ "$QUIET" = "" ] && echo "$1 $2"  >> "$MSGFILE" 2>&1
+}
+#
+echoconsole()
+{
+  local  SCRIPT
+  # the //scriptname form of scriptname remained
+  # for some kernel internal reason
+  SCRIPT="$1"
+  #SCRIPT="$(echo $1 | /bin/busybox tr -d "\/" 2>/dev/null)"
+  #[ "$SCRIPT" = "" ] && SCRIPT="$1"
+  #shift
+  [ "$SCRIPT" = "" ] && SCRIPT="[ $0 ]:"
+  # set quiet parameter on cmdline to stop any system messages from init script
+  if [ "$DEBUG" != "" ]; then  echofile "$SCRIPT" "$2"; fi 
+  if [ "$QUIET" = "" ]; then echo "$SCRIPT $2 "; fi
+  if [ "$DELAY" != "" ]; then /bin/busybox usleep $SYSWAIT 2>/dev/null; fi
+}
+#
+error2ash()
+{  # drop to system prompt in case of error
+ if [ "$SYSERRPROMPT" !=  "" ]; then
+   echoconsole  "$1" "Due to previous error in the execution of script..."
+   echoconsole  "$1" "..enter the /bin/busybox ash shell prompt or "
+   echoconsole  "$1" "press <ctrl-alt-del> for reboot"
+   /bin/busybox ash < /dev/console
+ fi
+}
+#
+extract_initscripts()
+{  # if the initscripts are compressed in a file
+ local INITSCRIPTFILE INITSCRIPTS
+ INITSCRIPTS="initscripts.tar"
+ if [ "$1" != "" ]; then INITSCRIPTS="$1"; fi
+ INITSCRIPTFILE=`/bin/busybox ls -1 $INITSCRIPTS* 2>/dev/null`
+ if [ "$INITSCRIPTFILE" != ""  ]; then  
+   /bin/busybox tar -xf $INITSCRIPTFILE 2>/dev/null 
+ fi
+}
+#
+inline_external_file()
+{
+  if [ -e "$1" ]; then
+    source  "$1"
+  elif [ -e "$CONFIGDIR/$1" ]; then
+    source "$CONFIGDIR/$1"
+  else
+    echo  "$INITPREF Can't continue : Broken init! Missing file: '$1' "
+    echo  "$INITPREF Please correct it at the /bin/busybox ash shell prompt "
+    echo  "$INITPREF by creating this file and press <ctrl-d> afterwards or "
+    echo  "$INITPREF press <ctrl-alt-del> for reboot......"
+    /bin/busybox ash < /dev/console
+  fi
+}
+#
+debug_prompt()
+{ # drop to system prompt in case of debugging switched on
+   echoconsole "$1"  "press <ctrl-d> to continue...."
+   /bin/busybox sync
+   /bin/busybox sleep 1
+   /bin/busybox ash < /dev/console
+}
+#
+debug_mark()
+{
+  if [ "$DEBUG" != "" ]; then
+    debug_prompt "$1"
+  fi
+}
+#
+assign_kernver_vars()
+{
+  local LVER SEPAR RC TRUNKKERNVAR SECEXTRAKERNVER
+  #set -x
+  LVER=$(echo $KERNVER | /bin/busybox tr "-" "." 2>/dev/null) 
+  if [ "$LVER" != "$KERNVER" ]; then 
+     SEPAR="-"
+  else
+     SEPAR="."
+  fi
+
+  LVER=$KERNVER   #| /bin/busybox tr "-" "." 2>/dev/null) 
+  SUFFIXKERNVER=${KERNVER//*$SEPAR}
+  TOPKERNVER=${KERNVER//.*}
+  LVER=${LVER#$TOPKERNVER.}
+  RC=0
+  TRUNKKERNVER=""
+  MAJORKERNVER=""
+  MINORKERNVER=""
+  EXTRAKERNVER=""
+  
+  case $KERNVER  in
+    *.*.*.*.*)
+      echoconsole "$1" "inadmissible Kernel Version format: '$KERNVER' ! May contain only 3 '.' "
+      MAJORKERNVER=${LVER//.*}
+      LVER=${LVER#$MAJORKERNVER.}
+      MINORKERNVER=${LVER//.*}
+      LVER=${LVER#$MINORKERNVER.}
+      EXTRAKERNVER=${LVER%$SUFFIXKERNVER}
+      EXTRAKERNVER=${EXTRAKERNVER%$SEPAR}
+      RC=4        
+    ;;
+    *.*.*.*)
+        MAJORKERNVER=${LVER//.*}
+        LVER=${LVER#$MAJORKERNVER.}
+        MINORKERNVER=${LVER//.*}
+        LVER=${LVER#$MINORKERNVER.}
+        EXTRAKERNVER=${LVER//.*}
+        SECEXTRAKERNVER=$EXTRAKERNVER
+        if [ "$(echo $MINORKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" != "" ]; then
+           EXTRAKERNVER=${MINORKERNVER} #//$SEPAR$SUFFIXKERNVER}
+           MINORKERNVER=""
+           # allow up 10^i -1 = 10**i -1 different subversions  
+           for i in 1 2 3 4; do
+             TRUNKKERNVER=${EXTRAKERNVER:0:$i}  
+             if [ "$(echo $TRUNKKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" = "" ]; then
+                 #EXTRAKERNVER=${EXTRAKERNVER#$MINORKERNVER}
+                 MINORKERNVER=$TRUNKKERNVER
+             fi
+           done    
+           [ $MINORKERNVER ] || MINORKERNVER=0
+           EXTRAKERNVER=${EXTRAKERNVER#$MINORKERNVER}
+           EXTRAKERNVER=${EXTRAKERNVER#$SEPAR}
+           EXTRAKERNVER=$EXTRAKERNVER.$SECEXTRAKERNVER
+        fi
+        SUFFIX="$SUFFIXKERNVER"
+        SUFFIXKERNVER=""
+        for ext in $ALLEXTENTS $ALLSUBEXTENTS; do
+          if `is_substring_of "$ext" "$EXTRAKERNVER" `; then
+            SUFFIXKERNVER="$ext"
+          fi 
+        done
+        #if `is_substring_of "$SUFFIXKERNVER" "$EXTRAKERNVER" `; then
+        TRUNKKERNVER=${EXTRAKERNVER%$SUFFIXKERNVER}
+        if [ "$TRUNKKERNVER$SUFFIXKERNVER" != "$EXTRAKERNVER" ]; then
+          SUFFIXKERNVER=""
+        else
+          EXTRAKERNVER=$TRUNKKERNVER
+        fi
+        if [ "$SUFFIXKERNVER" != "$EXTRAKERNVER" ]; then
+          EXTRAKERNVER=${EXTRAKERNVER#$SEPAR}
+          EXTRAKERNVER=${EXTRAKERNVER%$SEPAR}
+          EXTRAKERNVER=${EXTRAKERNVER%$SEPAR$SUFFIXKERNVER}
+          TRUNKKERNVER=${EXTRAKERNVER}${SEPAR}${SUFFIXKERNVER}
+          if [ "$TRUNKKERNVER" = "$EXTRAKERNVER" ]; then
+            EXTRAKERNVER=${TRUNKKERNVER//$SEPAR$SUFFIXKERNVER}
+          fi
+        fi
+    ;;
+    *.*.*)
+      MAJORKERNVER=${LVER//.*}
+      LVER=${LVER#$MAJORKERNVER.}
+      MINORKERNVER=${LVER%$SEPAR$SUFFIXKERNVER}
+      LVER=${LVER#$MINORKERNVER}
+      #[ "$LVER" ] ||  ${LVER#$MINORKERNVER}
+      EXTRAKERNVER=${LVER#$SEPAR}
+      SECEXTRAKERNVER=$EXTRAKERNVER
+      #EXTRAKERNVER=${LVER//$SUFFIXKERNVER}
+      #LVER=${LVER#$SEPAR$EXTRAKERNVER$SEPAR}
+      if [ "$(echo $MINORKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" != "" ]; then
+         EXTRAKERNVER=${MINORKERNVER} #//$SEPAR$SUFFIXKERNVER}
+         MINORKERNVER=""
+         # allow up 10^i -1 = 10**i -1 different subversions  
+         for i in 1 2 3 4; do
+           TRUNKKERNVER=${EXTRAKERNVER:0:$i}  
+           if [ "$(echo $TRUNKKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" = "" ]; then
+               MINORKERNVER=$TRUNKKERNVER
+           fi
+         done    
+         [ $MINORKERNVER ] || MINORKERNVER=0
+         EXTRAKERNVER=${EXTRAKERNVER#$MINORKERNVER}
+         EXTRAKERNVER=${EXTRAKERNVER#$SEPAR}
+      fi
+    ;;
+    *.*)
+      MAJORKERNVER=${LVER//$SEPAR*}
+      LVER=${LVER#$MAJORKERNVER$SEPAR$SUFFIXKERNVER}
+      #MINORKERNVER=""
+      #EXTRAKERNVER=""
+    ;;
+    *)
+      echoconsole "$1" "inadmissible Kernel Version format: '$KERNVER' !" 
+      echoconsole "$1" "Must contain at least one '.' and not more than three '.' "
+      #MAJORKERNVER=$KERNVER
+      #MINORKERNVER=""
+      #EXTRAKERNVER=""      
+      RC=4   
+      return $RC     
+    ;;
+  esac
+  #
+  if [ "$(echo $MAJORKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" != "" ]; then
+      echoconsole "$1" "inadmissible Kernel Version format: '$KERNVER' ! Major Version must be digit only. "
+      MAJORKERNVER=""
+      MINORKERNVER=""
+      EXTRAKERNVER=""      
+      RC=4 
+      return $RC            
+  fi
+  TRUNKKERNVER=""
+  #if [ "$SUFFIXKERNVER" != "$EXTRAKERNVER" ]; then
+  if `is_substring_of "$EXTRAKERNVER" "$SUFFIXKERNVER" `; then
+     SUFFIX="$SUFFIXKERNVER"
+     SUFFIXKERNVER=""
+     for ext in $ALLEXTENTS $ALLSUBEXTENTS; do
+       if `is_substring_of "$ext" "$EXTRAKERNVER" `; then
+         SUFFIXKERNVER="$ext"
+       fi 
+     done
+     TRUNKKERNVER=${EXTRAKERNVER%$SUFFIXKERNVER}
+     if [ "$TRUNKKERNVER$SUFFIXKERNVER" != "$EXTRAKERNVER" ]; then
+       SUFFIXKERNVER=""
+     else
+       EXTRAKERNVER=$TRUNKKERNVER
+     fi
+    if [ "$SUFFIXKERNVER" != "$EXTRAKERNVER" ]; then
+      EXTRAKERNVER=${EXTRAKERNVER#$SEPAR}
+      EXTRAKERNVER=${EXTRAKERNVER%$SEPAR}
+      EXTRAKERNVER=${EXTRAKERNVER%$SEPAR$SUFFIXKERNVER}
+      TRUNKKERNVER=${EXTRAKERNVER}${SEPAR}${SUFFIXKERNVER}
+      if [ "$TRUNKKERNVER" = "$EXTRAKERNVER" ]; then
+        EXTRAKERNVER=${TRUNKKERNVER//$SEPAR$SUFFIXKERNVER}
+      fi
+    fi
+  fi
+
+  #set +x
+  export TOPKERNVER MAJORKERNVER MINORKERNVER EXTRAKERNVER SUFFIXKERNVER
+  echoconsole "$1" "Top Version: '$TOPKERNVER' , Major Version: '$MAJORKERNVER' , Minor Version: '$MINORKERNVER'" 
+  echoconsole "$1" "Extra Version: '$EXTRAKERNVER' , Suffix Version: '$SUFFIXKERNVER' " 
+  return $RC
+}
+#
+set_kernver()
+{
+  KERNVER="$(/bin/busybox cut -f3 -d " " </proc/version 2>/dev/null)"
+  echoconsole "$1" "Kernel Version : '$KERNVER' " 
+  export KERNVER 
+}
+#
+assign_kernver_signed_file()
+{
+   local EXT ATPATH STEM
+   STEM="*"; ATPATH=""; EXT="" 
+   if [ "$3" !=  "" ]; then
+     STEM="$3" 
+   fi
+   if [ "$2" !=  "" ]; then
+     EXT="$2"
+   else
+     return 127
+   fi
+   if [ "$1" !=  "" ]; then
+     ATPATH="$1"
+     if [ "$ATPATH" = "/" ]; then ATPATH=""; fi
+   else
+     return 127
+   fi
+   KERNVERFILE=""
+   if [ "`/bin/busybox ls -1  $ATPATH/*$STEM*.$EXT 2>/dev/null`" !=  "" ]; then
+    local KERNVERFILES DELETEDFILES
+    KERNVERFILES=""
+    KERNVERFILES="$(/bin/busybox ls -1 $ATPATH/*$STEM*$TOPKERNVER.$MAJORKERNVER.$MINORKERNVER*.$EXT 2>/dev/null)"
+    if [ "$KERNVERFILES" != "" ]; then
+       KERNVERFILE=`/bin/busybox ls -1 $ATPATH/*$STEM*$KERNVER*.$EXT 2>/dev/null`
+    fi
+    if [ "$KERNVERFILE" != "" ] ; then
+      if [ -e "$KERNVERFILE"  ]; then 
+        DELETEDFILES=""
+        for k in $KERNVERFILES; do
+          if  [ "$KERNVERFILE" != "$k" ]; then 
+            /bin/busybox rm -f $k 2>/dev/null
+            DELETEDFILES="$DELETEDFILES $k"
+          fi 
+        done
+        echofile  "$INITPREF" "unused files deleted"
+        [ "$INITDBG" !=  "" -o "$DEBUG" != "" ] && echofile "$INITPREF" "deleted: $DELETEDFILES"
+        echofile "$INITPREF" "Kept : '$KERNVERFILE'"
+        export KERNVERFILE
+      else
+        echofile "$INITPREF" "File '$KERNVERFILE' does not exist !"
+      fi
+    else
+      echofile "$INITPREF" "File '$KERNVERFILE' for '$KERNVER' not found at '$ATPATH/' !"
+    fi # kernelfile
+   else
+     echofile  "$INITPREF" "No files with name '*$STEM*' and extension '$EXT' found at '$ATPATH/'  !"   
+   fi # squashfs files
+}
+#
+purge_unused_kernelmodules()
+{
+  local MODLIST todelete
+  if [ -d $1/lib/modules/$KERNVER  ]; then
+    MODLIST="$(echo $(/bin/busybox ls -1d $1/lib/modules/*  2>/dev/null))"
+    todelete=""
+    for todelete in $MODLIST; do
+      if [ "$todelete" != "$1/lib/modules/$KERNVER" ]; then
+        echoconsole "$2" "removing $todelete"
+        /bin/busybox rm -Rf $todelete
+      fi
+    done
+    return 0
+  else
+    return 1
+  fi
+}
+#
+make_devfs()
+{
+
+    /bin/busybox mdev -s  2>/dev/null
+    if [ $? -eq 0 ]; then 
+      /bin/busybox sync  2>/dev/null
+      echoconsole   "$1" " ...device files created."
+    else
+      echoconsole  "$1" " error in creating device files!"
+      error2ash  $1
+    fi
+
+}
+#
+assign_busybox_aliases()
+{
+  if [ "$HARDENED_BBALIASES" != "" ]; then
+    for ALIAS in $HARDENED_BBALIASES; do
+      if  `is_not_substring_of "$ALIAS " " $BLACKLISTED_BBALIASES "`; then
+        alias $ALIAS="/bin/busybox $ALIAS"
+        echo "set alias : \" $ALIAS=/bin/busybox $ALIAS \" with '$?'"
+      fi
+    done
+  else
+    HARDENED_BBALIASES="`/bin/busybox --list 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
+    export HARDENED_ALIASES
+    [ "$HARDENED_ALIASES" ] && assign_busybox_aliases
+  fi
+  alias dash="/bin/busybox ash"
+}
+#
+# thanks to R.Shingledecker/TinyCore
+# this is a faster solution than with grep
+is_string_in_file()
+{
+  case "$(/bin/busybox cat $2 2>/dev/null)" in 
+    *$1*) 
+      return 0
+    ;; 
+  esac
+  return 1
+}
+#
+is_not_string_in_file()
+{
+  case "$(/bin/busybox cat $2 2>/dev/null)" in 
+    *$1*) 
+      return 1
+    ;; 
+  esac
+  return 0
+}
+#
+# thanks to R.Shingledecker/TinyCore
+# this is a faster solution than with grep
+is_substring_of()
+{
+  case "$2" in
+     *$1*) 
+       return 0
+     ;; 
+  esac
+  return 1
+}
+#
+is_not_substring_of()
+{
+  case "$2" in
+     *$1*) 
+       return 1
+     ;; 
+  esac
+  return 0
+}
+#
+remove_duplicates_from_string()
+{
+
+  local STRINGVAR STRING DRV
+  if [ "$1" != "" ]; then
+    eval STRINGVAR="\$$1"
+    STRING=""
+    for DRV in $STRINGVAR; do
+      if `is_not_substring_of  " $DRV " " $STRING "`; then 
+        STRING="$STRING $DRV "
+      fi
+    done
+    if [ "$STRING" != "" ]; then
+      STRINGVAR="$1=\" $STRING \""
+      eval "$STRINGVAR"
+    fi
+    return $?
+  else
+    return 127
+  fi
+}
+#
+get_partuuids()
+{
+  local DISK BLOCKDEVICES DISKID PARTUUID BYTE1 BYTE2
+  BLOCKDEVICES=""
+  for DISK in `/bin/busybox ls -1d /sys/block/sd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/hd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/mmcblk* 2>/dev/null` ; do
+     BLOCKDEVICES="$BLOCKDEVICES `/bin/busybox basename "$DISK" 2>/dev/null` "
+  done
+  DISKID=""
+  for DISK in $BLOCKDEVICES; do
+     # extract the partuuid information from partition table
+     DISKID=`/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
+     if [ $? -eq 0 ]; then
+       PARTUUID=""
+       # reorder the words containing the partuuid 
+       BYTE1=`echo $DISKID | /bin/busybox cut -f3 -d" " 2>/dev/null`
+       BYTE2=`echo $DISKID | /bin/busybox cut -f2 -d" " 2>/dev/null`
+       PARTUUID="$BYTE1$BYTE2"
+       echo "$DISK|$PARTUUID"
+     else
+       echo "|"
+     fi
+  done
+
+}
+#

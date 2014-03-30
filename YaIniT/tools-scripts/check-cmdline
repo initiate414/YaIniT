@@ -1,0 +1,64 @@
+#!bin/busybox ash
+# (C) Dieter Miosga 08.2013 - 3.12.2013
+EXTENT="$2"
+VERSION="$1"
+MODF=""
+MKEXTENT="xz"
+ALLMODF=""
+ALLMKEXTENTS="gz xz bz2 lzma lz"
+
+if [ -e general-functions ]; then
+  source general-functions
+else
+  echo "essential functions from file 'general-functions' cannot be read!"
+  echo "exiting (127)"
+  exit 127
+fi
+
+inline_external_file "initvariables"
+inline_external_file "yainitdefaults"
+inline_external_file "KERNEL_CMDLINE_PARAMETERS2"
+
+
+  
+if [ "$KERNEL_CMDLINE_PARAMETERS" != "" ]; then
+   echo "Kernel Commandline Parameters found!"
+   MODULES=""
+  if [ "$KERNELCMDLINE" != "" -a "$SHELLVARIABLES" != "" ]; then
+   echo "Checking variable SHELLVARIABLES :"
+   for mod in $SHELLVARIABLES; do
+     if `is_substring_of " $mod " " $KERNEL_CMDLINE_PARAMETERS "`; then
+       MODULES="$MODULES $mod"
+     fi
+   done
+   if [ "$MODULES" != "" ]; then
+     echo "Found duplicate kernel cmdline parameters:"
+     echo "$MODULES"
+   else
+     echo "...done successfully. No duplicates found in SHELLVARIABLES setup !" 
+   fi
+   MODULES=""
+   echo "Checking variable KERNELCMDLINE :"
+   for mod in $KERNELCMDLINE; do
+     if `is_not_substring_of "$mod " " $KERNEL_CMDLINE_PARAMETERS "`; then
+       MODULES="$MODULES $mod"
+     fi
+   done
+   if [ "$MODULES" != "" ]; then
+     echo "Variables not found in kernel cmdline parameters:"
+     echo "$MODULES"
+   else
+     echo "...done successfully. All variables found in KERNELCMDLINE setup !" 
+   fi   
+  else
+     echo "No variable SHELLVARIABLES and/or KERNELCMDLINE found! "
+  fi
+else
+   echo "No file with kernel commandline parameters found! "
+fi
+
+   echo "$0 ended!"
+
+exit 0
+#
+

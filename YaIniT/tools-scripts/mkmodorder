@@ -1,0 +1,64 @@
+#!bin/busybox ash
+# (C) Dieter Miosga 08.2013 - 3.12.2013
+EXTENT="$2"
+VERSION="$1"
+MODF=""
+MKEXTENT="xz"
+ALLMODF=""
+ALLMKEXTENTS="gz xz bz2 lzma lz"
+
+if [ -e general-functions ]; then
+  source general-functions
+else
+  echo "essential functions from file 'general-functions' cannot be read!"
+  echo "exiting (127)"
+  exit 127
+fi
+
+inline_external_file "initvariables"
+inline_external_file "yainitdefaults"
+
+
+
+ext=""
+ALLEXTENTS=""
+
+if [ "$1" != "" ]; then YAINITKERNVER="$1"; fi
+if [ "$2" = "" ]; then EXTENT=*; MODF="$1"; fi
+
+if [ "$MODF" = "" ]; then
+  MODF="`bin/busybox ls -1 /lib/modules/$YAINITKERNVER-$EXTENT/modules.order 2>/dev/null| /bin/busybox tr "\n" " " 2>/dev/null`"
+fi
+
+  
+if [ "`/bin/busybox ls -1 "$MODF" 2>/dev/null`" != "" ]; then
+   echo "Files for ordering modules found : '$MODF' !"
+   MODULES_ORDER=""
+   for modf in $MODF; do
+      for line in `/bin/busybox cat $modf 2>/dev/null`; do
+        line=`/bin/busybox basename "$line" 2>/dev/null` # | /bin/busybox cut -f1 -d"." 2>/dev/null | /bin/busybox tr "-" "_" 2>/dev/null`
+        line=${line//.ko*}
+        MODULES_ORDER="$MODULES_ORDER $line"
+        /bin/busybox sync 2>/dev/null
+      done 
+   done
+   MODULES_ORDER="$DEFAULT_SYSBUSDRIVERS $MODULES_ORDER "
+   MODULES=""
+   MODULES_ORDER="`echo $MODULES_ORDER | /bin/busybox tr "-" "_" 2>/dev/null`"
+   for mod in $MODULES_ORDER; do
+     if `is_not_substring_of "$mod " "$MODULES"`; then
+       MODULES="$MODULES $mod"
+     fi
+   done
+   MODULES_ORDER="$MODULES"
+   echo "Writing MODULES_ORDER file..."
+   echo "MODULES_ORDER=\" $MODULES_ORDER \"" > MODULES_ORDER
+else
+   echo "No kernelmod order file   '$MODF' found!"
+fi
+
+   echo "$0 ended!"
+
+exit 0
+#
+
