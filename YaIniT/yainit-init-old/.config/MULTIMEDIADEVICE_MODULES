@@ -1,0 +1,1 @@
+DEFAULT_SOUNDDRIVERS="soundcore snd snd_hda_intel snd_soc_core "
