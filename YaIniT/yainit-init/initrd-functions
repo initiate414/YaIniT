@@ -526,39 +526,83 @@ initial_modules_load_auto()
      /bin/busybox sync 2>/dev/null
      if [ "$MODPROBE_FUNCTIONS_READ" = "" ]; then
        inline_external_file "modprobe-functions"
+       /bin/busybox mdev -s  2>/dev/null
+       /bin/busybox sync     2>/dev/null
      fi
      echoconsole  "$INITPREF" "Initial Kernel Module probing...."
      set_blacklisted_modules      
-     debug_busdevices "$MSGFILE" " initial state before probing stdpc drivers "     
-     probe_standardpc_drivers
+     #debug_busdevices "$MSGFILE" " initial state before probing stdpc drivers "
+     #probe_standardpc_drivers
+     debug_busdevices "$MSGFILE" " initial state before probing initial modalias/pci drivers "
      find_drivers_with_aliases
-     if `is_substring_of "hci" "$MODULES2LOAD"`; then
-       MODULES2LOAD="$MODULES2LOAD i2c_piix4 i2c_smbus ata_piix libata libahci ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd "
-     fi
-    
-     if `is_substring_of " sd_mod " " $MODULES2LOAD "`; then
-       MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
-       if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
-     fi
-     find_drivers_refine    
+     # superfluous now
+     #find_drivers_refine    
      # probe raw
+     if `is_substring_of "ahci" "$MODULES2LOAD"`; then
+       MODULES2LOAD="ahci libahci ata_piix libata $MODULES2LOAD "
+       #MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
+       #if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
+     fi
+     # put the *hci_hcd's back to the right and universal order 
      remove_duplicates_from_string "MODULES2LOAD"
-     echofile "$INITPREF" "modules : '$MODULES2LOAD'"
+     if [ `is_substring_of "hci_hcd" "$MODULES2LOAD"` ]; then
+        TOREMOVE="ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd"
+        remove_from_string "TOREMOVE"  "MODULES2LOAD" 
+        MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd "
+     fi
+     if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
+        if [ "$NOINPUT" != "" ]; then 
+           MODULES2LOAD="$MODULES2LOAD atkbd psmouse"
+        fi
+     fi
+     #echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      export ALLFOUNDMODULES="$MODULES2LOAD"
-     remove_already_loaded_modules "MODULES2LOAD"
-     kernelmodules_order
-     echofile "$INITPREF" "modules to load: '$MODULES2LOAD'"
+     #remove_already_loaded_modules "MODULES2LOAD"
+     #kernelmodules_order
+     echofile "$INITPREF" "primary modules to load: '$MODULES2LOAD'"
      kernelmodules_load
-
+     /bin/busybox mdev -s  2>/dev/null
+     /bin/busybox sync     2>/dev/null
      debug_busdevices "$MSGFILE" "after 1st run of modaliases / uevents"     
-     
+     if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
+        echofile  "$INITPREF" " initial state before probing input drivers "
+        probe_inputdevice_drivers
+        /bin/busybox mdev -s  2>/dev/null
+        /bin/busybox sync     2>/dev/null
+        debug_busdevices "$MSGFILE" "after inputdevice driver loading"     
+     fi
+     if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
+       probe_legacy_inputdevice_drivers
+       /bin/busybox mdev -s  2>/dev/null
+       /bin/busybox sync     2>/dev/null
+       /bin/busybox sleep 2  2>/dev/null
+        debug_busdevices "$MSGFILE" "after legacy inputdevice driver loading"     
+     fi
+     if  `is_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
+       SYSERRPROMPT=yes
+     fi
+     if [ "$DEBUG" != "" ]; then
+         /bin/busybox mdev -s  2>/dev/null
+         /bin/busybox sync     2>/dev/null
+         /bin/busybox sleep 2
+         echoconsole  "$INITPREF" " after loading input keyoard drivers "
+         echoconsole  "$INITPREF" " before probing for modalias/pci drivers  "
+         debug_mark "$INITPREF"       
+     fi
      # repeat
      find_drivers_with_aliases_fast
-     if `is_substring_of " sd_mod "  " $MODULES2LOAD "`; then
+     find_drivers_refine    
+     find_drivers_with_aliases
+     if `is_substring_of "hci" "$MODULES2LOAD"`; then
+       MODULES2LOAD="$MODULES2LOAD i2c_piix4 i2c_smbus ata_piix libata libahci"
+       if [ "$NOUSB" != "" ]; then  
+        MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd "
+      fi
+     fi    
+     if `is_substring_of "mod " " $MODULES2LOAD "`; then
        MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
        if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
      fi
-     #find_drivers_refine    
      remove_duplicates_from_string "MODULES2LOAD"
      echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      export ALLFOUNDMODULES="$ALLFOUNDMODULES $MODULES2LOAD"
@@ -599,10 +643,10 @@ initial_modules_load_auto()
          /bin/busybox mdev -s  2>/dev/null
          /bin/busybox sync     2>/dev/null
          /bin/busybox sleep 2
-         echoconsole  "$INITPREF" " after loading input keyoard drivers "
-         echoconsole  "$INITPREF" " before probing for mouse drivers  "
+         echoconsole  "$INITPREF" " after reprobing for input keyoard drivers "
+         echoconsole  "$INITPREF" " before reprobing for mouse drivers  "
          if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
-           echoconsole  "$INITPREF" " Drivers for Keyboard not loaded, abending wirh prompt! "
+           echoconsole  "$INITPREF" " Drivers for Keyboard not loaded, abending with prompt! "
          fi
          debug_prompt "$INITPREF"       
      fi
@@ -624,7 +668,7 @@ initial_modules_load_auto()
        fi
      fi
      
-     debug_busdevices "$MSGFILE" "after 2nd run of modaliases / uevents"            
+     debug_busdevices "$MSGFILE" "before 3rd run of modaliases / uevents"            
      export MODULES2LOAD=""
      find_drivers_with_aliases
      #find_drivers_refine

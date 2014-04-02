@@ -15,6 +15,9 @@
 PHASE=0
 THIS="$0"
 INITPREF="[ $PHASE$THIS ]:"
+# where the configuration files are, if in subdirectory
+# currently, busybox is broken, accepts with 'source' only files in the same directory  
+CONFIGDIR="."
 # read in general functions to make the INIT operable comfortably
 if [ -e  general-functions ]; then
     source  general-functions
@@ -51,7 +54,7 @@ if `is_substring_of  "branchparm=branch-" "$INITPARAMETERS"`; then
   PHASE=4
   INITPREF="[ $PHASE$THIS ]:"
   echoconsole   "$INITPREF" "System Kernel alive! Entered into init boot shell script,...."
-  export PHASE INITPREF
+  export PHASE INITPREF CONFIGDIR VERBOSE
   # read in necessary functions
   inline_external_file  "initsys-functions"
   inline_external_file  "$BRANCH_DIRECT-functions"
@@ -66,8 +69,7 @@ else # the big ELSE
 #
   MSGFILE="initmsg"
   echo "$INITPREF  System Kernel alive! Entered into init boot shell script,...."
-  CONFIGDIR=".config"
-  export INITPARAMETERS MSGFILE PHASE INITPREF CONFIGDIR
+  export INITPARAMETERS VERBOSE MSGFILE PHASE INITPREF CONFIGDIR
   #  original regular first boot without reinvocation 
   # read in necessary functions
   inline_external_file  "initvariables"

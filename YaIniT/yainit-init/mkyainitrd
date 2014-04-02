@@ -11,7 +11,7 @@ INITSCRIPTS=""
 ALLMKEXTENTS="gz xz bz lz"
 THISDIR="`bin/busybox pwd`"
 WKDIR="$3"
-CONFIGDIR=".config"
+CONFIGDIR="" # ./etc/config"
 . general-functions
 inline_external_file "yainitdefaults"
 

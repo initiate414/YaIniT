@@ -671,7 +671,7 @@ parse_rootdevice_string()
         ROOTDEV="$ROOTVAR"
       ;;
       # the OpenSuSE,... cases
-      /dev/disk/by-label/*|/dev/disk/by-uuid/*)
+      /dev/disk/by-*/*)
         # assign UUID/LABEL content
         ROOTVAR=${ROOT#/dev/disk/by*/}
         # ROOT=LABEL or UUID  
@@ -682,14 +682,15 @@ parse_rootdevice_string()
         export ROOT
         parse_rootdevice_string
       ;;
-      /dev/disk/by-id/*)
-        export ROOT=ID=${ROOT#/dev/disk/by*/}
+      #  the "id" and "name" cases do not work here for now
+      #/dev/disk/by-id/*)
+      #  export ROOT=ID=${ROOT#/dev/disk/by*/}
         #[ "$SUPPORTED_DISTROS" != "" ] &&  branch2_distro_support
-      ;;
-      /dev/disk/by-name/*)
-        export ROOT=NAME=${ROOT#/dev/disk/by*/}
+      #;;
+      #/dev/disk/by-name/*)
+      #  export ROOT=NAME=${ROOT#/dev/disk/by*/}
         #[ "$SUPPORTED_DISTROS" != "" ] &&  branch2_distro_support
-      ;;
+      #;;
       # the Redhat, Ubuntu,..., and generic cases
       label=*=uuid=*)
         LABEL=${ROOT#label=}

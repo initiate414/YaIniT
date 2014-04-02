@@ -36,6 +36,17 @@ error2ash()
    echoconsole  "$1" "..enter the /bin/busybox ash shell prompt or "
    echoconsole  "$1" "press <ctrl-alt-del> for reboot"
    /bin/busybox ash < /dev/console
+ else
+   echoconsole  "$1" "Fatal error during execution of curent scritpt "
+   echoconsole  "$1" "Invoking crasher now if module present,"
+   echoconsole  "$1" "or continuing execution until system crashes ... "
+ fi
+ if [ "$SYSERRFATAL" != "" ]; then 
+   local CRASH INSERT
+   CRASH=`/bin/busybox -D crasher 2>/dev/null`
+   if [ "$CRASH" != "" ]; then
+     modprobe crasher 2>/dev/null
+   fi
  fi
 }
 #
@@ -57,7 +68,7 @@ inline_external_file()
   elif [ -e "$CONFIGDIR/$1" ]; then
     source "$CONFIGDIR/$1"
   else
-    echo  "$INITPREF Can't continue : Broken init! Missing file: '$1' "
+    echo  "$INITPREF Can't continue : Broken init! Missing file: '$1' or '$CONFIGDIR/$1' "
     echo  "$INITPREF Please correct it at the /bin/busybox ash shell prompt "
     echo  "$INITPREF by creating this file and press <ctrl-d> afterwards or "
     echo  "$INITPREF press <ctrl-alt-del> for reboot......"
@@ -75,7 +86,7 @@ debug_prompt()
 #
 debug_mark()
 {
-  if [ "$DEBUG" != "" ]; then
+  if [ "$DEBUG" != "" -a "$SYSERRPROMPT" != "" ]; then
     debug_prompt "$1"
   fi
 }
@@ -407,6 +418,32 @@ remove_duplicates_from_string()
     done
     if [ "$STRING" != "" ]; then
       STRINGVAR="$1=\" $STRING \""
+      eval "$STRINGVAR"
+    fi
+    return $?
+  else
+    return 127
+  fi
+}
+#
+remove_from_string()
+{
+  local STRINGVAR STRING DRV RMVAR
+  if [ "$1" != "" ]; then 
+    eval RMVAR="\$$1"
+  else
+    return 127
+  fi
+  if [ "$2" != "" ]; then
+    eval STRINGVAR="\$$2"
+    STRING=""
+    for DRV in $STRINGVAR; do
+      if `is_not_substring_of  " $DRV " " $RMVAR "`; then 
+        STRING="$STRING $DRV "
+      fi
+    done
+    if [ "$STRING" != "" ]; then
+      STRINGVAR="$2=\" $STRING \""
       eval "$STRINGVAR"
     fi
     return $?

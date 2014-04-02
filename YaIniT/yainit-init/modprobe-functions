@@ -500,30 +500,17 @@ probe_sound_drivers()
   fi # nosnd
 }
 #
-probe_filesystem_drivers()
+find_filesystem_drivers()
 {
-  local  DRIVER DRIVERS BLKIDBB OLDFILEDRIVERS
-  BLKIDBB=""
-  #  the filesystem drivers need to be loaded
+    local  DRIVER DRIVERS BLKIDBB OLDFILEDRIVERS DEVICE TYPE
+    BLKIDBB=""
+    #  the filesystem drivers need to be loaded
 
     #/bin/busybox mdev -s 2>/dev/null
     #/bin/busybox sync    2>/dev/null
 
-    if [ "$DEFAULT_SYSFILEDRIVERS" = "" ]; then
-      inline_external_file "FILESYSTEM_MODULES"
-      FILEDRIVERS="$DEFAULT_SYSFILEDRIVERS"
-    fi
-    if [ "$NOLAYER" = "" ]; then
-      FILEDRIVERS="$FILEDRIVERS $DEFAULT_LAYERFSDRIVERS"
-    fi
     DRIVERS=""
     if [ "$NOHD" = "" -o "$NOCD" = "" ]; then
-      if [ "$NOCD" = "" ]; then
-        FILEDRIVERS="$FILEDRIVERS $DEFAULT_OPTICALDRIVERS"
-      fi
-      if [ "$NOHD" = "" ]; then
-        FILEDRIVERS="$FILEDRIVERS $DEFAULT_FILEDRIVERS"
-      fi
       OLDFILEDRIVERS=""
       /bin/busybox mdev -s 2>/dev/null
       /bin/busybox sync    2>/dev/null
@@ -534,45 +521,52 @@ probe_filesystem_drivers()
             DRIVERS="$DRIVERS $DRIVER"
           fi
         done
-      else
-        OLDFILEDRIVERS="$FILEDRIVERS"
+        # drivers needed to access accessible blockdevice
+        export DRIVERS
+        OLDFILEDRIVERS="$DRIVERS"
         /bin/busybox mdev -s 2>/dev/null
         /bin/busybox sync    2>/dev/null
-        # repeat it , maybe the devices are late.......
-        /bin/busybox blkid  2>/dev/null | while read dev label uuid type subtype rest1 rest2; do
-           dev=${dev#:}
-           if [ "$dev" != "" ]; then export DEVICE="$dev"; fi
-           if [ "$label" != "" ]; then export $label ; fi
-           if [ "$uuid" != "" ]; then export $uuid ; fi
-           if [ "$type" != "" ]; then export $type ; fi
-           if [ "$subtype" != "" ]; then export $subtype ; fi
-           if [ "$rest1" != "" ]; then export $rest1 ; fi
-           if [ "$rest2" != "" ]; then export $rest2 ; fi
-           if [ "$TYPE" != "" ]; then export FILEDRIVERS="$FILEDRIVERS $TYPE"; fi
-        done
-        if [ "$FILEDRIVERS" = "$OLDFILEDRIVERS" ]; then
+        DRIVERS=""
+        
+        if [ "$DRIVERS" = "" ]; then
           BLKIDBB=`/bin/busybox blkid   2>/dev/null`
-          DRIVERS="` echo $BLKIDBB | /bin/busybox tr " " "\n" 2>/dev/null| /bin/busybox grep TYPE 2>/dev/null | /bin/busybox cut -f2 -d= 2>/dev/null | /bin/busybox tr -d "\"" 2>/dev/null `"
+          DRIVERS="` echo $BLKIDBB | /bin/busybox tr " " "\n" 2>/dev/null| /bin/busybox grep TYPE 2>/dev/null | /bin/busybox cut -f2 -d= 2>/dev/null | /bin/busybox tr -d '\"' 2>/dev/null `"
         fi
+        DRIVERS="$OLDFILEDRIVERS $DRIVERS"
+        #echo "$INITPREF found drivers '$DRIVERS'"
       fi
-  
-      if [ "$BLKIDBB" != "" ]; then
-        for DRIVER in $FILEDRIVERS $DRIVERS; do
-          if `is_substring_of  "\"$DRIVER\""  "$BLKIDBB"`; then
-            DRIVERS="$DRIVERS $DRIVER"
-          fi
-        done
-      #else
-      #  FILEDRIVERS="$FILEDRIVERS $DRIVERS"
-      fi
-      FILEDRIVERS="$FILEDRIVERS $DRIVERS"
+      #for DRIVER in $FILEDRIVERS $DRIVERS; do
+      #  if `is_substring_of  "$DRIVER"  "$BLKIDBB"`; then
+       #   DRIVERS="$DRIVERS $DRIVER"
+       # fi
+      #done
       #export FILEDRIVERS
     fi
+    if [ "$DEFAULT_SYSFILEDRIVERS" = "" ]; then
+      inline_external_file "FILESYSTEM_MODULES"
+      #FILEDRIVERS="$DEFAULT_SYSFILEDRIVERS"
+    fi
+    if [ "$NOHD" = "" -a "$DRIVERS" = "" ]; then
+        FILEDRIVERS="$FILEDRIVERS $DEFAULT_FILEDRIVERS"
+    fi
+    if [ "$NOCD" = "" ]; then
+        FILEDRIVERS="$FILEDRIVERS $DEFAULT_OPTICALDRIVERS"
+    fi
+    if [ "$NOLAYER" = "" ]; then
+      FILEDRIVERS="$FILEDRIVERS $DEFAULT_LAYERFSDRIVERS"
+    fi
+    FILEDRIVERS="$DRIVERS $FILEDRIVERS $DEFAULT_SYSFILEDRIVERS"
+    remove_duplicates_from_string "FILEDRIVERS"
   
-    echoconsole "$INITPREF" "Probing filesystem drivers"
     export FILEDRIVERS
+
+}
+#
+probe_filesystem_drivers()
+{
+    echoconsole "$INITPREF" "Probing filesystem drivers"
+    find_filesystem_drivers "$INITPREF"     
     probe_drivers "FILEDRIVERS"
-    
 }
 #
 probe_legacy_inputdevice_drivers()
@@ -909,7 +903,7 @@ remove_already_loaded_modules()
     STRING=""
     for DRV in $STRINGVAR; do
       if `is_not_string_in_file  "$DRV " "/proc/modules"`; then 
-        STRING="$DRV $STRING"
+        STRING="$STRING $DRV"
       fi
     done
     if [ "$STRING" != "" ]; then
@@ -1104,15 +1098,15 @@ find_drivers_with_aliases_fast()
   # this is a modified and enhanced version of the algorithm from android-x86 4.4 RC1
   # but it does not find in all cases
   local MODALIASFILE 
-    if [ -e /lib/modules/$KERNVER/modules.alias ]; then
-      MODALIASFILE="/lib/modules/$KERNVER/modules.alias"
-    else 
-      if [ -e modules.alias ]; then
-        MODALIASFILE="modules.alias"
-      else
-        return 127
-      fi
+  if [ -e /lib/modules/$KERNVER/modules.alias ]; then
+    MODALIASFILE="/lib/modules/$KERNVER/modules.alias"
+  else 
+    if [ -e modules.alias ]; then
+      MODALIASFILE="modules.alias"
+    else
+      return 127
     fi
+  fi
   
   local DRIVERS DRIVER ALIASES MODULES
   if [ -e bbmodp.sh ]; then
@@ -1207,7 +1201,7 @@ find_drivers_with_bbmodprobe()
   # device manufacturer codes : 1022=amd 1002=ati/amd 10de=nvidia 8086=intel
 
   echofile "$INITPREF" "search directory top path: '$SEARCHDIR'"
-  for modalias in `/bin/busybox find "$SEARCHDIR"  -name "modalias" -exec cat '{}' \; 2>/dev/null`; do
+  for modalias in `/bin/busybox find "$SEARCHDIR"  -name "modalias" -exec cat '{}' 2>/dev/null \; `; do
     DRIVER="`/bin/busybox modprobe -D "$modalias" 2>/dev/null | /bin/busybox cut -f2- -d " " 2>/dev/null | /bin/busybox tr  "-" "_" 2>/dev/null | /bin/busybox tr  "\n" " " 2>/dev/null`"
     # integrate multiple drivers avoid all duplicates
     for D in $DRIVER; do
@@ -1244,6 +1238,7 @@ find_drivers_with_aliases()
     DIR="/sys"
   fi
   find_drivers_with_bbmodprobe "$DIR" "$MODALIASFILE"
+  echofile "$1" "modules detected with aliases: '$MODULES2LOAD'"
   return 0
 } 
 #
@@ -1333,7 +1328,7 @@ probe_default_pcidrivers()
     
     if [ "$PCICLASSES" != "" ]; then
 
-     if `is_substring_of " 06" "$PCICLASSES"`; then
+     if `is_substring_of " 06" " $PCICLASSES"`; then
          inline_external_file "INPUTDEVICE_MODULES"
          inline_external_file "SYSTEMBUS_MODULES"
          probe_systembus_drivers 
@@ -1343,7 +1338,7 @@ probe_default_pcidrivers()
          inline_external_file "SYSTEMBUS_MODULES"
          probe_systembus_drivers 
      fi
-     if `is_substring_of " 09" "$PCICLASSES"`; then
+     if `is_substring_of " 09" " $PCICLASSES"`; then
          inline_external_file "INPUTDEVICE_MODULES"
          probe_legacy_inputdevice_drivers
      fi
@@ -1351,12 +1346,12 @@ probe_default_pcidrivers()
          inline_external_file "INPUTDEVICE_MODULES"
          probe_legacy_inputdevice_drivers
      fi
-     if `is_substring_of " 00" "$PCICLASSES"`; then
-         inline_external_file "INPUTDEVICE_MODULES"
-         probe_legacy_inputdevice_drivers
+     if `is_substring_of " 00" " $PCICLASSES"`; then
+        inline_external_file "INPUTDEVICE_MODULES"
+        probe_legacy_inputdevice_drivers
      fi
      
-     if `is_substring_of " 01" "$PCICLASSES"`; then
+     if `is_substring_of " 01" " $PCICLASSES"`; then
        
        NOPROBEDDRIVERS=yes
        inline_external_file "BLOCKDEVICE_MODULES"
@@ -1380,13 +1375,14 @@ probe_default_pcidrivers()
        fi
        
      fi
-     
+
      if `is_substring_of "0c03" "$PCICLASSES"`; then
           inline_external_file "USBBUS_MODULES"
           probe_serialusb_drivers 
      fi
-     
-     if `is_substring_of " 03" "$PCICLASSES"`; then
+          
+
+     if `is_substring_of " 03" " $PCICLASSES"`; then
        inline_external_file "VIDEODEVICE_MODULES"       
        if `is_substring_of "0300" "$PCICLASSES"`; then
           probe_vgagraphic_drivers
@@ -1394,18 +1390,24 @@ probe_default_pcidrivers()
           probe_graphic_drivers 
        fi
      fi
+
+     if `is_substring_of " 0001" " $PCICLASSES"`; then
+          inline_external_file "VIDEODEVICE_MODULES"       
+          probe_graphic_drivers 
+     fi
      
-     if `is_substring_of " 04" "$PCICLASSES"`; then
+
+     if `is_substring_of " 04" " $PCICLASSES"`; then
         inline_external_file "MULTIMEDIADEVICE_MODULES"
         probe_sound_drivers
      fi
      
-     if `is_substring_of " 02" "$PCICLASSES"`; then
+     if `is_substring_of " 02" " $PCICLASSES"`; then
         inline_external_file "NETDEVICE_MODULES"
         probe_networkdevice_drivers
      fi
      
-     if `is_substring_of " 0d" "$PCICLASSES"`; then
+     if `is_substring_of " 0d" " $PCICLASSES"`; then
         inline_external_file "NETDEVICE_MODULES"
         probe_wirelessnetwork_drivers
      fi
