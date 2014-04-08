@@ -430,10 +430,13 @@ if [ "$RESCUE" = "" ]; then # modified from Slackware
     /bin/busybox umount /sys   2>/dev/null
     /bin/busybox umount -af    2>/dev/null
     if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
+      /bin/busybox umount -a -f    2>/dev/null
       /bin/busybox umount debugfs   2>/dev/null
       /bin/busybox umount procfs  2>/dev/null
       /bin/busybox umount sysfs   2>/dev/null
-      /bin/busybox umount -af    2>/dev/null
+      /bin/busybox umount tmpfs   2>/dev/null
+      /bin/busybox umount hugetlbfs   2>/dev/null
+      /bin/busybox umount devpts   2>/dev/null      
     fi 
     exec  $CHROOTBB  ./  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
     if [ $? -ne 0 ]; then 
@@ -453,14 +456,17 @@ if [ "$RESCUE" = "" ]; then # modified from Slackware
     /bin/busybox umount /sys/kernel/debug   2>/dev/null
     /bin/busybox umount /proc 2>/dev/null
     /bin/busybox umount /sys  2>/dev/null
-    /bin/busybox umount -af    2>/dev/null
+    /bin/busybox umount -a -f    2>/dev/null
     if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
+      /bin/busybox umount -a -f    2>/dev/null
       /bin/busybox umount debugfs   2>/dev/null
       /bin/busybox umount procfs  2>/dev/null
       /bin/busybox umount sysfs   2>/dev/null
-      /bin/busybox umount -af    2>/dev/null
-   fi 
-     exec  $SWITCHROOTBB   $ROOTDIR  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
+      /bin/busybox umount tmpfs   2>/dev/null
+      /bin/busybox umount hugetlbfs   2>/dev/null
+      /bin/busybox umount devpts   2>/dev/null      
+    fi 
+    exec  $SWITCHROOTBB   $ROOTDIR  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
     if [ $? -ne 0 ]; then 
       echolog "${INITRD}:  changing root to bootfilesystem $ROOTDIR not successfull, retrying....."
       cd   $ROOTDIR
@@ -480,10 +486,13 @@ if [ "$RESCUE" = "" ]; then # modified from Slackware
     /bin/busybox umount /sys   2>/dev/null
     /bin/busybox umount -af    2>/dev/null
     if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
+      /bin/busybox umount -a -f    2>/dev/null
       /bin/busybox umount debugfs   2>/dev/null
       /bin/busybox umount procfs  2>/dev/null
       /bin/busybox umount sysfs   2>/dev/null
-      /bin/busybox umount -af    2>/dev/null
+      /bin/busybox umount tmpfs   2>/dev/null
+      /bin/busybox umount hugetlbfs   2>/dev/null
+      /bin/busybox umount devpts   2>/dev/null      
     fi 
     exec  $CHROOT  ./  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
     echolog "${INITRD}: failed chroot with system commands, falling back to busybox commands...."
@@ -500,10 +509,13 @@ if [ "$RESCUE" = "" ]; then # modified from Slackware
     /bin/busybox umount /sys   2>/dev/null
     /bin/busybox umount -af    2>/dev/null
     if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
+      /bin/busybox umount -a -f    2>/dev/null
       /bin/busybox umount debugfs   2>/dev/null
       /bin/busybox umount procfs  2>/dev/null
       /bin/busybox umount sysfs   2>/dev/null
-     /bin/busybox umount -af    2>/dev/null
+      /bin/busybox umount tmpfs   2>/dev/null
+      /bin/busybox umount hugetlbfs   2>/dev/null
+      /bin/busybox umount devpts   2>/dev/null      
     fi 
     exec $SWITCHROOT -c /dev/console $ROOTDIR  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
     echolog "${INITRD}: failed switch_root with system commands, falling back to busybox commands...."

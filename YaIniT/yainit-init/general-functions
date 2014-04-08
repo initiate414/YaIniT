@@ -20,9 +20,7 @@ echoconsole()
   # for some kernel internal reason
   SCRIPT="$1"
   #SCRIPT="$(echo $1 | /bin/busybox tr -d "\/" 2>/dev/null)"
-  #[ "$SCRIPT" = "" ] && SCRIPT="$1"
-  #shift
-  [ "$SCRIPT" = "" ] && SCRIPT="[ $0 ]:"
+  [ "$SCRIPT" = "" ] && SCRIPT="$1"
   # set quiet parameter on cmdline to stop any system messages from init script
   if [ "$DEBUG" != "" ]; then  echofile "$SCRIPT" "$2"; fi 
   if [ "$QUIET" = "" ]; then echo "$SCRIPT $2 "; fi

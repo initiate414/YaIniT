@@ -228,7 +228,6 @@ setup_configurations()
   echofile  "$INITPREF"  " Building directory tree for initramfs...... "
 
   build_rootfs    2>/dev/null
-  export PATH=/:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:/lib
   /bin/busybox sync
 
   echofile  "$INITPREF" "......done."
@@ -240,7 +239,9 @@ setup_configurations()
   echoconsole "" "$ECHOTEXT"
 
   /bin/busybox sync
-  /bin/busybox mount  -o remount,rw /         2>/dev/null   # for the case we forgot rw in initramfs
+  create_rootfs_dirs ""
+  export PATH=/:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:/lib
+  #/bin/busybox mount  -o remount,rw /         2>/dev/null   # for the case we forgot rw in initramfs
   /bin/busybox ln -s /proc/mounts /etc/mtab  2>/dev/null
 
   set_kernver          "$INITPREF"
@@ -403,8 +404,9 @@ setup_system()
   # since kenel 2.6.32 we have a returned devtmpfs which creates device files automatically
   # however mdev -s is still necessary for some configurations
   # therefore, still do it anyway
-  echoconsole   "$INITPREF" " creating device files in /dev..... "
-  make_devfs "$INITPREF"    2>/dev/null
+  #echoconsole   "$INITPREF" " creating device files in /dev..... "
+  #make_devfs "$INITPREF"    2>/dev/null
+  # migrated into mount_filesystems 
   /bin/busybox sync
 
 }
@@ -423,6 +425,8 @@ debug_busdevices()
     #/bin/busybox ls -1R /proc/bus/*  >>  $1
     #/bin/busybox ls -1R /proc/driver/*  >>  $1
     local FILEDIR
+    echo "$INITPREF" "Mounted filesystems " >> $1
+    /bin/busybox cat /proc/mounts  2>/dev/null  >> $1
     echo "$INITPREF" "Output from lspci -k" >> $1
     /bin/busybox lspci -k 2>/dev/null  >> $1
     echo "$INITPREF" "Output from lsusb " >> $1
@@ -519,6 +523,7 @@ initial_modules_load_defaults()
 #
 initial_modules_load_auto()
 {
+
     if [ "`/bin/busybox ls -1 /lib/modules/$KERNVER/kernel  2>/dev/null`" != "" ]; then
      echoconsole  "$INITPREF" " Kernel modules found for '$KERNVER' at '/lib/modules/$KERNVER/kernel'  ...."
      echoconsole  "$INITPREF" " Creating module dependencies for $KERNVER ...."
@@ -529,6 +534,11 @@ initial_modules_load_auto()
        /bin/busybox mdev -s  2>/dev/null
        /bin/busybox sync     2>/dev/null
      fi
+     # kernelmodules need in some configurations the debugfs mounted to load
+     if  `is_not_string_in_file  "debugfs"  "/proc/mounts" `; then 
+       mount_debugfs
+       /bin/busybox sync 2>/dev/null
+     fi
      echoconsole  "$INITPREF" "Initial Kernel Module probing...."
      set_blacklisted_modules      
      #debug_busdevices "$MSGFILE" " initial state before probing stdpc drivers "
@@ -538,27 +548,39 @@ initial_modules_load_auto()
      # superfluous now
      #find_drivers_refine    
      # probe raw
+     local MODULES1 MODULES2
+     MODULES1=""
      if `is_substring_of "ahci" "$MODULES2LOAD"`; then
-       MODULES2LOAD="ahci libahci ata_piix libata $MODULES2LOAD "
+       MODULES1="ahci libahci ata_piix libata"
        #MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
        #if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
      fi
      # put the *hci_hcd's back to the right and universal order 
+     MODULES2=""
+     if `is_substring_of "hci_" "$MODULES2LOAD "` ; then
+        MODULES2="ehci_pci ehci_hcd ehci_platform ohci_pci ohci_hcd ohci_platform xhci_hcd uhci_hcd"
+        #TOREMOVE="ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd"
+        #remove_from_string "TOREMOVE"  "MODULES2LOAD" 
+        #MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform uhci_hcd xhci_hcd  "
+     fi
+     MODULES2LOAD="$MODULES1 $MODULES2 $MODULES2LOAD"
+     if [ "$NOINPUT" = "" ]; then    
+       if [ -e /proc/bus/input/devices ]; then
+         if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices"`; then
+             MODULES2LOAD="$MODULES2LOAD atkbd usbkbd usbhid hid_generic"
+         fi
+         if  `is_not_string_in_file  "ouse" "/proc/bus/input/devices"`; then
+             MODULES2LOAD="$MODULES2LOAD psmouse usbmouse usbhid hid_generic mousedev"
+         fi  
+       else
+         MODULES2LOAD="$MODULES2LOAD atkbd psmouse usbkbd usbmouse usbhid hid_generic mousedev"
+       fi
+     fi
      remove_duplicates_from_string "MODULES2LOAD"
-     if [ `is_substring_of "hci_hcd" "$MODULES2LOAD"` ]; then
-        TOREMOVE="ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd"
-        remove_from_string "TOREMOVE"  "MODULES2LOAD" 
-        MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd "
-     fi
-     if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
-        if [ "$NOINPUT" != "" ]; then 
-           MODULES2LOAD="$MODULES2LOAD atkbd psmouse"
-        fi
-     fi
      #echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      export ALLFOUNDMODULES="$MODULES2LOAD"
      #remove_already_loaded_modules "MODULES2LOAD"
-     #kernelmodules_order
+     kernelmodules_order
      echofile "$INITPREF" "primary modules to load: '$MODULES2LOAD'"
      kernelmodules_load
      /bin/busybox mdev -s  2>/dev/null
@@ -591,30 +613,55 @@ initial_modules_load_auto()
      fi
      # repeat
      find_drivers_with_aliases_fast
+     MODULES2LOAD="$MODULES2LOAD `/bin/busybox find /sys  -name uevent  -exec cat '{}' 2>/dev/null \; | /bin/busybox grep DRIVER 2>/dev/null | /bin/busybox cut -f2- -d "=" 2>/dev/null| /bin/busybox tr "-" "_" 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
      find_drivers_refine    
      find_drivers_with_aliases
-     if `is_substring_of "hci" "$MODULES2LOAD"`; then
-       MODULES2LOAD="$MODULES2LOAD i2c_piix4 i2c_smbus ata_piix libata libahci"
-       if [ "$NOUSB" != "" ]; then  
-        MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd "
-      fi
-     fi    
-     if `is_substring_of "mod " " $MODULES2LOAD "`; then
+     MODULES1=""
+     if `is_substring_of "ahci" "$MODULES2LOAD"`; then
+       MODULES1="ahci libahci ata_piix libata"
+       #MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
+       #if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
+     fi
+     # put the *hci_hcd's back to the right and universal order 
+     MODULES2=""
+     if `is_substring_of "hci_" "$MODULES2LOAD "` ; then
+        MODULES2="ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd"
+        #TOREMOVE="ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd"
+        #remove_from_string "TOREMOVE"  "MODULES2LOAD" 
+        #MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform uhci_hcd xhci_hcd  "
+     fi
+     MODULES2LOAD="$MODULES1 $MODULES2 $MODULES2LOAD"
+     #if `is_substring_of "hci" "$MODULES2LOAD"`; then
+     #  MODULES2LOAD="$MODULES2LOAD i2c_piix4 i2c_smbus ata_piix libata libahci"
+     #  if [ "$NOUSB" != "" ]; then  
+     #   MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd "
+     # fi
+     #fi
+     if [ "$NOINPUT" = "" ]; then    
+       if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices"`; then
+          
+             MODULES2LOAD="$MODULES2LOAD atkbd usbhid usbkbd"
+       fi
+       if  `is_not_string_in_file  "ouse" "/proc/bus/input/devices"`; then
+             MODULES2LOAD="$MODULES2LOAD psmouse usbhid usbmouse mousedev"
+       fi
+     fi
+     # 
+     if [ "$NOHD" = "" ]; then
        MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
        if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
      fi
      remove_duplicates_from_string "MODULES2LOAD"
      echofile "$INITPREF" "modules : '$MODULES2LOAD'"
-     export ALLFOUNDMODULES="$ALLFOUNDMODULES $MODULES2LOAD"
+     
      remove_already_loaded_modules "MODULES2LOAD"
      kernelmodules_order
-     
+     export ALLFOUNDMODULES="$ALLFOUNDMODULES $MODULES2LOAD"
      echofile "$INITPREF" "modules to load: '$MODULES2LOAD'"
      kernelmodules_load
      
      /bin/busybox mdev -s  2>/dev/null
      /bin/busybox sync     2>/dev/null
-     
      if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
        probe_inputdevice_drivers
        /bin/busybox mdev -s  2>/dev/null
@@ -640,17 +687,17 @@ initial_modules_load_auto()
         SYSERRPROMPT=yes
      fi
      if [ "$DEBUG" != "" ]; then
-         /bin/busybox mdev -s  2>/dev/null
-         /bin/busybox sync     2>/dev/null
-         /bin/busybox sleep 2
-         echoconsole  "$INITPREF" " after reprobing for input keyoard drivers "
-         echoconsole  "$INITPREF" " before reprobing for mouse drivers  "
-         if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
-           echoconsole  "$INITPREF" " Drivers for Keyboard not loaded, abending with prompt! "
-         fi
-         debug_prompt "$INITPREF"       
+       /bin/busybox mdev -s  2>/dev/null
+       /bin/busybox sync     2>/dev/null
+       /bin/busybox sleep 2
+       echoconsole  "$INITPREF" " after reprobing for input keyoard drivers "
+       echoconsole  "$INITPREF" " before reprobing for mouse drivers  "
+       if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
+         echoconsole  "$INITPREF" " Drivers for Keyboard not loaded, abending with prompt! "
+       fi
+       debug_prompt "$INITPREF"       
      fi
-       
+     #
      if  `is_not_string_in_file  "ouse" "/proc/bus/input/devices" `; then
        probe_inputdevice_drivers
        /bin/busybox mdev -s  2>/dev/null
@@ -659,19 +706,14 @@ initial_modules_load_auto()
          probe_legacy_inputdevice_drivers
          /bin/busybox mdev -s  2>/dev/null
          /bin/busybox sync     2>/dev/null
-         /bin/busybox sleep 2  2>/dev/null
-       fi
-       if  `is_not_string_in_file  "ouse" "/proc/bus/input/devices" `; then
-         probe_legacy_inputdevice_drivers
-         /bin/busybox mdev -s  2>/dev/null
-         /bin/busybox sync     2>/dev/null
+         #/bin/busybox sleep 2  2>/dev/null
        fi
      fi
-     
      debug_busdevices "$MSGFILE" "before 3rd run of modaliases / uevents"            
      export MODULES2LOAD=""
      find_drivers_with_aliases
      #find_drivers_refine
+     MODULES2LOAD="$MODULES2LOAD `/bin/busybox find /sys  -name uevent  -exec cat '{}' 2>/dev/null \; | /bin/busybox grep DRIVER 2>/dev/null | /bin/busybox cut -f2- -d "=" 2>/dev/null| /bin/busybox tr "-" "_" 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
      remove_duplicates_from_string "MODULES2LOAD"
      echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      export ALLFOUNDMODULES="$ALLFOUNDMODULES $MODULES2LOAD"

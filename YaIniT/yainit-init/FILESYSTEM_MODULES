@@ -1,7 +1,7 @@
 #
 DEFAULT_SYSFILEDRIVERS="autofs4 autofs loop brd squashfs"
 #
-DEFAULT_FILEDRIVERS="f2fs ext2 ext3 ext4 reiserfs xfs vfat fscache cachefiles mbcache"
+DEFAULT_FILEDRIVERS="f2fs ext2 ext3 ext4 reiserfs xfs vfat mbcache fscache cachefiles"
 #
 DEFAULT_LAYERFSDRIVERS="unionfs aufs overlayfs"
 #

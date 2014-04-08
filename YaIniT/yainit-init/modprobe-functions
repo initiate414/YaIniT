@@ -287,7 +287,11 @@ probe_blockdevice_drivers()
          if [ "$NOCD" = "" ]; then
            DRIVERS="$DRIVERS sr_mod cdrom"
          fi
-         ATADRIVERS="$DRIVERS scsi_debug"
+         if [ "$DEBUG" != "" ] ; then 
+           ATADRIVERS="$DRIVERS scsi_debug"
+         else
+           ATADRIVERS="$DRIVERS"
+         fi
        fi
        echoconsole "$INITPREF" "now modprobing for AHCI/ATA/RAID/SATA......"
        MODULES2LOAD="$MODULES2LOAD $ATADRIVERS"
@@ -963,7 +967,7 @@ set_blacklisted_modules()
     fi
 
     if [ "$NOMON" != "" ]; then
-      inline_external_file "VIDEODEVIDE_MODULES"
+      inline_external_file "VIDEODEVICE_MODULES"
       BLACKLIST_MODULES="$BLACKLIST_MODULES $DEFAULT_SYSVIDEODRIVERS $DEFAULT_VIDEODRIVERS "
       DEFAULT_SYSVIDEODRIVERS="" 
       DEFAULT_VIDEODRIVERS=""
@@ -1246,7 +1250,7 @@ kernelmodules_order()
 {
   local mod MODULES OMITMODS
   if [ "$MODULES_ORDER" = "" ]; then
-    inline_external_file MODULES_ORDER
+    inline_external_file "MODULES_ORDER"
   fi
   MODULES=""
   for mod in $MODULES_ORDER; do
@@ -1274,8 +1278,8 @@ kernelmodules_autoload()
   #find_drivers_from_uevents
   #find_drivers_from_modaliases
   #echoconsole "final modules: $MODULES2LOAD"
-  [ "$MODULES_ORDER" ] ||  inline_external_file MODULES_ORDER
-  [ "$BLACKLIST_MODULES" ] || inline_external_file BLACKLIST_MODULES
+  [ "$MODULES_ORDER" ] ||  inline_external_file "MODULES_ORDER"
+  [ "$BLACKLIST_MODULES" ] || inline_external_file "BLACKLIST_MODULES"
   export BLACKLIST_MODULES
   #inline_external_file WHITELIST_MODULES
   #MODULES2LOAD=" `echo $MODULES2LOAD | /bin/busybox tr "-" "_" 2>/dev/null` "  
@@ -1466,7 +1470,8 @@ remove_unused_modules()
        fi
       fi
    done < /proc/modules
-
+   #DRIVERS=`/bin/busybox find /sys  -name uevent  -exec cat '{}' 2>/dev/null \; | /bin/busybox grep DRIVER 2>/dev/null | /bin/busybox cut -f2- -d "=" 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
+   
    DRIVERS2KEEP="$DRIVERS2KEEP $DEFAULT_DRIVERS2KEEP $FILEDRIVERS"
    #SYSDRIVERS="$DEFAULT_SYSBUSDRIVERS $DEFAULT_SYSATADRIVERS $DEFAULT_SYSUSBDRIVERS $DEFAULT_SYSVIDEODRIVERS"
    echofile "$INITPREF" "Drivers to keep:"
@@ -1479,14 +1484,14 @@ remove_unused_modules()
       echofile "$INITPREF" "Kernel driver '$DRIVER' removed with '$?'"
      fi
    done
-
    /bin/busybox sync 2>/dev/null
+   
    echofile "$INITPREF" ".... and more unnecessary drivers:"
    while read DRIVER NUMBER DEPEND REST; do
     #DRIVER=`echo "$line"| /bin/busybox cut -f1 -d" " 2>/dev/null`
     #FOUND=`echo $DRIVERS2KEEP | /bin/busybox grep "$DRIVER" 2>/dev/null`
     if `is_substring_of  " $DRIVER " " $DRIVERS2REMOVE "`; then
-      if `is_not_substring_of  "$DRIVER " " $DRIVERS2KEEP "`; then
+      if `is_not_substring_of  "$DRIVER " " $DRIVERS2KEEP $ALLFOUNDMODULES "`; then
         remove_kernelmodule "$DRIVER"
         echofile "$INITPREF" "Kernel driver '$DRIVER' removed with '$?'"
       fi

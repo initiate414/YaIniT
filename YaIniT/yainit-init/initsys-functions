@@ -30,7 +30,7 @@ build_rootfs()
   [ -e /dev/null ]    || /bin/busybox  mknod /dev/null c 1 3
   > /dev/.initramfs-tools
   /bin/busybox mkdir -p /dev/.initramfs
-  create_rootfs_dirs ""
+  #create_rootfs_dirs ""
   
 }
 #
@@ -481,6 +481,7 @@ $INITPREF unable to mount root / in  read-write mode!"
 mount_debugfs()
 {
  local RC DEBUGFS
+ # debugfs needs to be compiled in
  if  `is_string_in_file  "debugfs"  "/proc/filesystems" `; then 
 	/bin/busybox mkdir -p /sys/kernel  2>/dev/null
 	/bin/busybox mkdir -p /sys/kernel/debug  2>/dev/null
@@ -494,13 +495,75 @@ $INITPREF Unable to mount debugfs, kernel misconfigured !"
  fi
 }
 #
+mount_devtmpfs()
+{
+  local RC
+	/bin/busybox mkdir -p /dev   2>/dev/null
+	/bin/busybox mount -t devtmpfs devtmpfs /dev 2>/dev/null
+	RC=$?
+   export ECHOTEXT="$ECHOTEXT 
+$INITPREF Mounted devtmpfs at /dev with '$RC'...."
+
+  #/bin/busybox mdev -s 2>/dev/null
+  /bin/busybox sync 2>/dev/null
+  
+}
+#
+mount_shmfs()
+{
+  local RC
+ # tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)
+ if  `is_string_in_file  "tmpfs"  "/proc/filesystems"`; then 
+	/bin/busybox mkdir -p /dev/shm   2>/dev/null
+	/bin/busybox mount -t tmpfs -o rw,nosuid,nodev tmpfs /dev/shm 2>/dev/null
+	RC=$?
+   export ECHOTEXT="$ECHOTEXT 
+$INITPREF Mounted devtmpfs at /dev with '$RC'...."
+ fi
+  
+}
+#
+mount_devpts()
+{
+  local RC
+ if  `is_string_in_file  "devpts"  "/proc/filesystems"`; then 
+	/bin/busybox mkdir -p /dev/pts   2>/dev/null
+	/bin/busybox mount -t devpts -o rw,relatime   devpts   /dev/pts   2>/dev/null
+	RC=$?
+   export ECHOTEXT="$ECHOTEXT 
+$INITPREF Mounted devpts at /dev/pts with '$RC'...."
+   /bin/busybox sync 2>/dev/null
+ fi
+  
+}
+#
+mount_hugetlbfs()
+{
+ #hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime)
+ if  `is_string_in_file  "hugetlbfs"  "/proc/filesystems"`; then 
+  /bin/busybox mkdir -p /dev/hugepages   2>/dev/null
+	/bin/busybox mount -t hugetlbfs -o rw,relatime   hugetlbfs /dev/hugepages  2>/dev/null
+	RC=$?
+   export ECHOTEXT="$ECHOTEXT 
+$INITPREF Mounted hugetlbfs at /dev/hugepages with '$RC'...."
+   /bin/busybox sync 2>/dev/null
+ fi
+}
+#
 mount_filesystems()
 {
- mount_procfs_sysfs "$1"
- /bin/busybox sync 2>/dev/null
+ #  clean rootfs mounting for chroot or switch_root 
+  /bin/busybox mount -t rootfs -o rw,remount /  2>/dev/null  
+ 
+  # 
+  mount_procfs_sysfs "$1"
+  /bin/busybox sync 2>/dev/null
+  #
+
+ #
  # The debugfs feature is normally not needed in initial boot 
  if [ "$DEBUG" != "" -o "$DEBUGFS" != "" ]; then
-  if  `is_not_string_in_file  "debugfs"  "/proc/mounts" `; then 
+  if  `is_not_string_in_file  "debugfs"  "/proc/mounts"`; then 
    mount_debugfs
    /bin/busybox sync 2>/dev/null
   fi

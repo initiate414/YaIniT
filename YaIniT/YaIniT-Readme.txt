@@ -1,6 +1,6 @@
 YaIniT (Yet an almost universal INIT Tool)
 ###
-    U N D E R     C O N S T R U C T I O N  ! ! !
+    Version 0.1 , still U N D E R     C O N S T R U C T I O N  ! ! !
 ###
 This is a tool for automatization and customization of 
 the boot process of a GNU/Linux system.
@@ -37,7 +37,10 @@ Files:
    will stop the system boot at halt marks and allow you to copy 
    the well matching and optimized BusyBox executable for your machine
    in your boot directory.  
-
+.  yatiny-2se3.gz 
+   same as yatiny.gz but containing the kernel modules for
+   kernel 3.12.4.bfs4444yainitu-2se3
+   
 Folders:
 
 .  yainit-init
@@ -58,5 +61,5 @@ Folders:
    contains the files with the system documentation
    
 
-Dieter Miosga, 2014-03-31 
+Dieter Miosga, 2014-04-08 
 

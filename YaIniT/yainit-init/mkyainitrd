@@ -12,8 +12,12 @@ ALLMKEXTENTS="gz xz bz lz"
 THISDIR="`bin/busybox pwd`"
 WKDIR="$3"
 CONFIGDIR="" # ./etc/config"
-. general-functions
-inline_external_file "yainitdefaults"
+if [ -e general-functions ]; then
+  . general-functions
+  inline_external_file "yainitdefaults"
+else
+  INITRD=yautiny
+fi
 
 
 #if `is_not_substring_of "$EXTENT " "$ALLEXTENTS " `; then 
@@ -44,6 +48,7 @@ fi
 if [ "$INITRD" = "" ]; then
   INITRD=yainit0
 fi 
+
 if [ "$EXTENT" != "" ]; then INITRD="$INITRD-$EXTENT"; fi 
 
  echo "  initrd name = $INITRD"
