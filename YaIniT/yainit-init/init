@@ -47,7 +47,7 @@ INITPARAMETERS="$@"
 # system wide initial default verbosity
 VERBOSE=3
 #
-if `is_substring_of  "branchparm=branch-" "$INITPARAMETERS"`; then
+if `is_substring_of  " branchparm=branch-" " $INITPARAMETERS"`; then
 #
   if [ "$1" !=  "" ]; then eval "$1" 2>/dev/null; fi
   BRANCH_DIRECT=$branchparm
