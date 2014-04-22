@@ -1,0 +1,13 @@
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index 7992635..3192fa4 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -2457,7 +2457,7 @@ defaults:
+ 		sd_printk(KERN_NOTICE, sdkp, "Assuming drive cache: write back\n");
+ 		sdkp->WCE = 1;
+ 	} else {
+-		sd_printk(KERN_ERR, sdkp, "Assuming drive cache: write through\n");
++		sd_printk(KERN_WARNING, sdkp, "Assuming drive cache: write through\n");
+ 		sdkp->WCE = 0;
+ 	}
+ 	sdkp->RCD = 0;

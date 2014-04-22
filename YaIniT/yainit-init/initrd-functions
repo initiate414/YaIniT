@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for YaIniT Yet an almost universal INIT Tool with busybox
-#  (C) Dieter Miosga , 2008-2014-03-31
+#  (C) Dieter Miosga , 2008-2014-04-22
 #
 #echo   "[ initrd-functions ]: Being read in...."
 # read in necessary functions
@@ -561,6 +561,7 @@ initial_modules_load_auto()
      #find_drivers_refine    
      # probe raw
      set_initial_modules
+     set_principal_modules
      remove_duplicates_from_string "MODULES2LOAD"
      #echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      export ALLFOUNDMODULES="$MODULES2LOAD"
@@ -602,19 +603,9 @@ initial_modules_load_auto()
      find_drivers_refine    
      find_drivers_with_aliases
      # for Bluetooth INPUT devices , Keyboards and Mouses
-     if [ "$NOBT" = "" ]; then
-       MODULES2LOAD=" btusb bcm203x bpa10x bfusb btwilink st_drv ath3k bluetooth $MODULES2LOAD"
-     fi
      set_initial_modules
+     set_principal_modules
      # 
-     if [ "$NOHD" = "" ]; then
-       MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
-       if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
-     fi
-     # for Bluetooth INPUT devices , Keyboards and Mouses
-     if [ "$NOBT" = "" ]; then
-       MODULES2LOAD="$MODULES2LOAD btusb bcm203x bpa10x bfusb wilink7 ath3k bluetooth"
-     fi
      remove_duplicates_from_string "MODULES2LOAD"
      echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      remove_already_loaded_modules "MODULES2LOAD"
@@ -679,6 +670,7 @@ initial_modules_load_auto()
      find_drivers_with_aliases
      #find_drivers_refine
      MODULES2LOAD="$MODULES2LOAD `/bin/busybox find /sys  -name uevent  -exec cat '{}' 2>/dev/null \; | /bin/busybox grep DRIVER 2>/dev/null | /bin/busybox cut -f2- -d "=" 2>/dev/null| /bin/busybox tr "-" "_" 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
+     set_principal_modules
      remove_duplicates_from_string "MODULES2LOAD"
      echofile "$INITPREF" "modules : '$MODULES2LOAD'"
      export ALLFOUNDMODULES="$ALLFOUNDMODULES $MODULES2LOAD"

@@ -1,0 +1,1545 @@
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/boot/compressed/Makefile linux-3.12.4-trusty/arch/arm/boot/compressed/Makefile
+--- linux-3.12-final/arch/arm/boot/compressed/Makefile	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/boot/compressed/Makefile	2013-12-08 23:28:35.000000000 +0000
+@@ -2,8 +2,9 @@
+ # linux/arch/arm/boot/compressed/Makefile
+ #
+ # create a compressed vmlinuz image from the original vmlinux
+ #
++KBUILD_CFLAGS := $(filter-out -fstack-protector, $(KBUILD_CFLAGS)) -fno-stack-protector
+ 
+ OBJS		=
+ 
+ # Ensure that MMCIF loader code appears early in the image
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/boot/dts/omap4-panda-common.dtsi linux-3.12.4-trusty/arch/arm/boot/dts/omap4-panda-common.dtsi
+--- linux-3.12-final/arch/arm/boot/dts/omap4-panda-common.dtsi	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/boot/dts/omap4-panda-common.dtsi	2013-12-08 23:28:49.000000000 +0000
+@@ -121,39 +121,19 @@
+ 		enable-active-high;
+ 	};
+ };
+ 
+-&omap4_pmx_wkup {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <
+-			&twl6030_wkup_pins
+-	>;
+-
+-	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
+-		pinctrl-single,pins = <
+-			0x14 (PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
+-		>;
+-	};
+-};
+-
+ &omap4_pmx_core {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <
+-			&twl6030_pins
+ 			&twl6040_pins
+ 			&mcpdm_pins
+ 			&mcbsp1_pins
+ 			&dss_hdmi_pins
+ 			&tpd12s015_pins
+ 			&hsusbb1_pins
+ 	>;
+ 
+-	twl6030_pins: pinmux_twl6030_pins {
+-		pinctrl-single,pins = <
+-			0x15e (WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
+-		>;
+-	};
+-
+ 	twl6040_pins: pinmux_twl6040_pins {
+ 		pinctrl-single,pins = <
+ 			0xe0 (PIN_OUTPUT | MUX_MODE3)	/* hdq_sio.gpio_127 */
+ 			0x160 (PIN_INPUT | MUX_MODE0)	/* sys_nirq2.sys_nirq2 */
+@@ -238,17 +218,8 @@
+ 			0xee (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_scl */
+ 			0xf0 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_sda */
+ 		>;
+ 	};
+-};
+-
+-&omap4_pmx_wkup {
+-	led_wkgpio_pins: pinmux_leds_wkpins {
+-		pinctrl-single,pins = <
+-			0x1a (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk7 */
+-			0x1c (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk8 */
+-		>;
+-	};
+ 
+ 	/*
+ 	 * wl12xx GPIO outputs for WLAN_EN, BT_EN, FM_EN, BT_WAKEUP
+ 	 * REVISIT: Are the pull-ups needed for GPIO 48 and 49?
+@@ -276,8 +247,17 @@
+ 		>;
+ 	};
+ };
+ 
++&omap4_pmx_wkup {
++	led_wkgpio_pins: pinmux_leds_wkpins {
++		pinctrl-single,pins = <
++			0x1a (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk7 */
++			0x1c (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk8 */
++		>;
++	};
++};
++
+ &i2c1 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&i2c1_pins>;
+ 
+@@ -304,8 +284,9 @@
+ 	};
+ };
+ 
+ #include "twl6030.dtsi"
++#include "twl6030_omap4.dtsi"
+ 
+ &i2c2 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&i2c2_pins>;
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/boot/dts/omap4-sdp.dts linux-3.12.4-trusty/arch/arm/boot/dts/omap4-sdp.dts
+--- linux-3.12-final/arch/arm/boot/dts/omap4-sdp.dts	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/boot/dts/omap4-sdp.dts	2013-12-08 23:28:49.000000000 +0000
+@@ -154,25 +154,11 @@
+ 		enable-active-high;
+ 	};
+ };
+ 
+-&omap4_pmx_wkup {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <
+-			&twl6030_wkup_pins
+-	>;
+-
+-	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
+-		pinctrl-single,pins = <
+-			0x14 (PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
+-		>;
+-	};
+-};
+-
+ &omap4_pmx_core {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <
+-			&twl6030_pins
+ 			&twl6040_pins
+ 			&mcpdm_pins
+ 			&dmic_pins
+ 			&mcbsp1_pins
+@@ -205,14 +191,8 @@
+ 			0x11e (PIN_OUTPUT | MUX_MODE0)		/* uart4_tx.uart4_tx */
+ 		>;
+ 	};
+ 
+-	twl6030_pins: pinmux_twl6030_pins {
+-		pinctrl-single,pins = <
+-			0x15e (WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
+-		>;
+-	};
+-
+ 	twl6040_pins: pinmux_twl6040_pins {
+ 		pinctrl-single,pins = <
+ 			0xe0 (PIN_OUTPUT | MUX_MODE3)		/* hdq_sio.gpio_127 */
+ 			0x160 (PIN_INPUT | MUX_MODE0)		/* sys_nirq2.sys_nirq2 */
+@@ -369,8 +349,9 @@
+ 	};
+ };
+ 
+ #include "twl6030.dtsi"
++#include "twl6030_omap4.dtsi"
+ 
+ &i2c2 {
+ 	pinctrl-names = "default";
+ 	pinctrl-0 = <&i2c2_pins>;
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/mach-highbank/Makefile linux-3.12.4-trusty/arch/arm/mach-highbank/Makefile
+--- linux-3.12-final/arch/arm/mach-highbank/Makefile	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/mach-highbank/Makefile	2013-12-08 23:28:35.000000000 +0000
+@@ -1,4 +1,6 @@
++KBUILD_CFLAGS += -I$(srctree)/arch/arm/mach-highbank/include
++
+ obj-y					:= highbank.o system.o smc.o
+ 
+ plus_sec := $(call as-instr,.arch_extension sec,+sec)
+ AFLAGS_smc.o				:=-Wa,-march=armv7-a$(plus_sec)
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/mach-omap2/common.h linux-3.12.4-trusty/arch/arm/mach-omap2/common.h
+--- linux-3.12-final/arch/arm/mach-omap2/common.h	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/mach-omap2/common.h	2013-12-08 23:28:35.000000000 +0000
+@@ -231,8 +231,9 @@
+ #endif
+ 
+ extern void __init gic_init_irq(void);
+ extern void gic_dist_disable(void);
++extern void gic_dist_enable(void);
+ extern bool gic_dist_disabled(void);
+ extern void gic_timer_retrigger(void);
+ extern void omap_smc1(u32 fn, u32 arg);
+ extern void __iomem *omap4_get_sar_ram_base(void);
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/mach-omap2/cpuidle44xx.c linux-3.12.4-trusty/arch/arm/mach-omap2/cpuidle44xx.c
+--- linux-3.12-final/arch/arm/mach-omap2/cpuidle44xx.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/mach-omap2/cpuidle44xx.c	2013-11-30 04:51:20.000000000 +0000
+@@ -79,8 +79,9 @@
+ 			struct cpuidle_driver *drv,
+ 			int index)
+ {
+ 	struct idle_statedata *cx = state_ptr + index;
++	u32 mpuss_can_lose_context = 0;
+ 
+ 	/*
+ 	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
+ 	 * This is necessary to honour hardware recommondation
+@@ -103,8 +104,11 @@
+ 
+ 		}
+ 	}
+ 
++	mpuss_can_lose_context = (cx->mpu_state == PWRDM_POWER_RET) &&
++				 (cx->mpu_logic_state == PWRDM_POWER_OFF);
++
+ 	/*
+ 	 * Call idle CPU PM enter notifier chain so that
+ 	 * VFP and per CPU interrupt context is saved.
+ 	 */
+@@ -117,21 +121,34 @@
+ 		/*
+ 		 * Call idle CPU cluster PM enter notifier chain
+ 		 * to save GIC and wakeupgen context.
+ 		 */
+-		if ((cx->mpu_state == PWRDM_POWER_RET) &&
+-			(cx->mpu_logic_state == PWRDM_POWER_OFF))
++		if (mpuss_can_lose_context)
+ 				cpu_cluster_pm_enter();
+ 	}
+ 
+ 	omap4_enter_lowpower(dev->cpu, cx->cpu_state);
+ 	cpu_done[dev->cpu] = true;
+ 
+ 	/* Wakeup CPU1 only if it is not offlined */
+ 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
++
++		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
++		    mpuss_can_lose_context)
++			gic_dist_disable();
++
+ 		clkdm_wakeup(cpu_clkdm[1]);
+ 		omap_set_pwrdm_state(cpu_pd[1], PWRDM_POWER_ON);
+ 		clkdm_allow_idle(cpu_clkdm[1]);
++
++		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
++		    mpuss_can_lose_context) {
++			while (gic_dist_disabled()) {
++				udelay(1);
++				cpu_relax();
++			}
++			gic_timer_retrigger();
++		}
+ 	}
+ 
+ 	/*
+ 	 * Call idle CPU PM exit notifier chain to restore
+@@ -142,10 +159,9 @@
+ 	/*
+ 	 * Call idle CPU cluster PM exit notifier chain
+ 	 * to restore GIC and wakeupgen context.
+ 	 */
+-	if (dev->cpu == 0 && (cx->mpu_state == PWRDM_POWER_RET) &&
+-		(cx->mpu_logic_state == PWRDM_POWER_OFF))
++	if (dev->cpu == 0 && mpuss_can_lose_context)
+ 		cpu_cluster_pm_exit();
+ 
+ fail:
+ 	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/mach-omap2/omap-mpuss-lowpower.c linux-3.12.4-trusty/arch/arm/mach-omap2/omap-mpuss-lowpower.c
+--- linux-3.12-final/arch/arm/mach-omap2/omap-mpuss-lowpower.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/mach-omap2/omap-mpuss-lowpower.c	2013-11-30 04:51:20.000000000 +0000
+@@ -270,8 +270,11 @@
+ 		cpu_suspend(save_state, omap_pm_ops.finish_suspend);
+ 	else
+ 		omap_pm_ops.finish_suspend(save_state);
+ 
++	if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) && cpu)
++		gic_dist_enable();
++
+ 	/*
+ 	 * Restore the CPUx power state to ON otherwise CPUx
+ 	 * power domain can transitions to programmed low power
+ 	 * state while doing WFI outside the low powe code. On
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/mach-omap2/omap4-common.c linux-3.12.4-trusty/arch/arm/mach-omap2/omap4-common.c
+--- linux-3.12-final/arch/arm/mach-omap2/omap4-common.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/mach-omap2/omap4-common.c	2013-12-08 23:28:35.000000000 +0000
+@@ -127,8 +127,14 @@
+ 	if (gic_dist_base_addr)
+ 		__raw_writel(0x0, gic_dist_base_addr + GIC_DIST_CTRL);
+ }
+ 
++void gic_dist_enable(void)
++{
++	if (gic_dist_base_addr)
++		__raw_writel(0x1, gic_dist_base_addr + GIC_DIST_CTRL);
++}
++
+ bool gic_dist_disabled(void)
+ {
+ 	return !(__raw_readl(gic_dist_base_addr + GIC_DIST_CTRL) & 0x1);
+ }
+diff -iwBEr -U 4 linux-3.12-final/arch/arm/mach-omap2/pm.c linux-3.12.4-trusty/arch/arm/mach-omap2/pm.c
+--- linux-3.12-final/arch/arm/mach-omap2/pm.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm/mach-omap2/pm.c	2013-12-08 23:28:35.000000000 +0000
+@@ -303,8 +303,11 @@
+ 		/* cpufreq dummy device instantiation */
+ 		omap_init_cpufreq();
+ 	}
+ 
++	/* cpufreq dummy device instantiation */
++	omap_init_cpufreq();
++
+ #ifdef CONFIG_SUSPEND
+ 	suspend_set_ops(&omap_pm_ops);
+ #endif
+ 
+diff -iwBEr -U 4 linux-3.12-final/arch/arm64/kernel/arm64ksyms.c linux-3.12.4-trusty/arch/arm64/kernel/arm64ksyms.c
+--- linux-3.12-final/arch/arm64/kernel/arm64ksyms.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/arch/arm64/kernel/arm64ksyms.c	2013-12-08 23:28:35.000000000 +0000
+@@ -37,8 +37,9 @@
+ EXPORT_SYMBOL(clear_page);
+ 
+ EXPORT_SYMBOL(__copy_from_user);
+ EXPORT_SYMBOL(__copy_to_user);
++EXPORT_SYMBOL(__copy_in_user);
+ EXPORT_SYMBOL(__clear_user);
+ 
+ 	/* physical memory */
+ EXPORT_SYMBOL(memstart_addr);
+diff -iwBEr -U 4 linux-3.12-final/arch/x86/kernel/machine_kexec_32.c linux-3.12.4-trusty/arch/x86/kernel/machine_kexec_32.c
+--- linux-3.12-final/arch/x86/kernel/machine_kexec_32.c	2013-12-09 19:48:26.000000000 +0000
++++ linux-3.12.4-trusty/arch/x86/kernel/machine_kexec_32.c	2013-11-30 04:46:16.000000000 +0000
+@@ -25,8 +25,50 @@
+ #include <asm/desc.h>
+ #include <asm/cacheflush.h>
+ #include <asm/debugreg.h>
+ 
++static void set_idt(void *newidt, __u16 limit)
++{
++	struct desc_ptr curidt;
++
++	/* ia32 supports unaliged loads & stores */
++	curidt.size    = limit;
++	curidt.address = (unsigned long)newidt;
++
++	load_idt(&curidt);
++}
++
++
++static void set_gdt(void *newgdt, __u16 limit)
++{
++	struct desc_ptr curgdt;
++
++	/* ia32 supports unaligned loads & stores */
++	curgdt.size    = limit;
++	curgdt.address = (unsigned long)newgdt;
++
++	load_gdt(&curgdt);
++}
++
++static void load_segments(void)
++{
++#define __STR(X) #X
++#define STR(X) __STR(X)
++
++	__asm__ __volatile__ (
++		"\tljmp $"STR(__KERNEL_CS)",$1f\n"
++		"\t1:\n"
++		"\tmovl $"STR(__KERNEL_DS)",%%eax\n"
++		"\tmovl %%eax,%%ds\n"
++		"\tmovl %%eax,%%es\n"
++		"\tmovl %%eax,%%fs\n"
++		"\tmovl %%eax,%%gs\n"
++		"\tmovl %%eax,%%ss\n"
++		: : : "eax", "memory");
++#undef STR
++#undef __STR
++}
++
+ static void machine_kexec_free_page_tables(struct kimage *image)
+ {
+ 	free_page((unsigned long)image->arch.pgd);
+ #ifdef CONFIG_X86_PAE
+@@ -184,8 +226,26 @@
+ 	if (image->type == KEXEC_TYPE_DEFAULT)
+ 		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
+ 						<< PAGE_SHIFT);
+ 
++	/*
++	 * The segment registers are funny things, they have both a
++	 * visible and an invisible part.  Whenever the visible part is
++	 * set to a specific selector, the invisible part is loaded
++	 * with from a table in memory.  At no other time is the
++	 * descriptor table in memory accessed.
++	 *
++	 * I take advantage of this here by force loading the
++	 * segments, before I zap the gdt with an invalid value.
++	 */
++	load_segments();
++	/*
++	 * The gdt & idt are now invalid.
++	 * If you want to load them you must set up your own idt & gdt.
++	 */
++	set_gdt(phys_to_virt(0), 0);
++	set_idt(phys_to_virt(0), 0);
++
+ 	/* now call it */
+ 	image->start = relocate_kernel_ptr((unsigned long)image->head,
+ 					   (unsigned long)page_list,
+ 					   image->start, cpu_has_pae,
+diff -iwBEr -U 4 linux-3.12-final/arch/x86/kernel/machine_kexec_64.c linux-3.12.4-trusty/arch/x86/kernel/machine_kexec_64.c
+--- linux-3.12-final/arch/x86/kernel/machine_kexec_64.c	2013-12-09 19:48:26.000000000 +0000
++++ linux-3.12.4-trusty/arch/x86/kernel/machine_kexec_64.c	2013-11-30 04:46:16.000000000 +0000
+@@ -129,8 +129,49 @@
+ 
+ 	return init_transition_pgtable(image, level4p);
+ }
+ 
++static void set_idt(void *newidt, u16 limit)
++{
++	struct desc_ptr curidt;
++
++	/* x86-64 supports unaliged loads & stores */
++	curidt.size    = limit;
++	curidt.address = (unsigned long)newidt;
++
++	__asm__ __volatile__ (
++		"lidtq %0\n"
++		: : "m" (curidt)
++		);
++};
++
++
++static void set_gdt(void *newgdt, u16 limit)
++{
++	struct desc_ptr curgdt;
++
++	/* x86-64 supports unaligned loads & stores */
++	curgdt.size    = limit;
++	curgdt.address = (unsigned long)newgdt;
++
++	__asm__ __volatile__ (
++		"lgdtq %0\n"
++		: : "m" (curgdt)
++		);
++};
++
++static void load_segments(void)
++{
++	__asm__ __volatile__ (
++		"\tmovl %0,%%ds\n"
++		"\tmovl %0,%%es\n"
++		"\tmovl %0,%%ss\n"
++		"\tmovl %0,%%fs\n"
++		"\tmovl %0,%%gs\n"
++		: : "a" (__KERNEL_DS) : "memory"
++		);
++}
++
+ int machine_kexec_prepare(struct kimage *image)
+ {
+ 	unsigned long start_pgtable;
+ 	int result;
+@@ -196,8 +237,26 @@
+ 	if (image->type == KEXEC_TYPE_DEFAULT)
+ 		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
+ 						<< PAGE_SHIFT);
+ 
++	/*
++	 * The segment registers are funny things, they have both a
++	 * visible and an invisible part.  Whenever the visible part is
++	 * set to a specific selector, the invisible part is loaded
++	 * with from a table in memory.  At no other time is the
++	 * descriptor table in memory accessed.
++	 *
++	 * I take advantage of this here by force loading the
++	 * segments, before I zap the gdt with an invalid value.
++	 */
++	load_segments();
++	/*
++	 * The gdt & idt are now invalid.
++	 * If you want to load them you must set up your own idt & gdt.
++	 */
++	set_gdt(phys_to_virt(0), 0);
++	set_idt(phys_to_virt(0), 0);
++
+ 	/* now call it */
+ 	image->start = relocate_kernel((unsigned long)image->head,
+ 				       (unsigned long)page_list,
+ 				       image->start,
+diff -iwBEr -U 4 linux-3.12-final/arch/x86/kernel/reboot.c linux-3.12.4-trusty/arch/x86/kernel/reboot.c
+--- linux-3.12-final/arch/x86/kernel/reboot.c	2013-12-09 19:48:27.000000000 +0000
++++ linux-3.12.4-trusty/arch/x86/kernel/reboot.c	2013-12-08 23:28:36.000000000 +0000
+@@ -341,8 +341,16 @@
+ 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E5420"),
+ 		},
+ 	},
++	{       /* Handle problems with rebooting on the Latitude E6220. */
++		.callback = set_pci_reboot,
++		.ident = "Dell Latitude E6220",
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E6220"),
++		},
++	},
+ 	{	/* Handle problems with rebooting on the Latitude E6420. */
+ 		.callback = set_pci_reboot,
+ 		.ident = "Dell Latitude E6420",
+ 		.matches = {
+@@ -381,8 +389,40 @@
+ 			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "C6100"),
+ 		},
+ 	},
++	{	/* Handle problems with rebooting on the Latitude E6520. */
++		.callback = set_pci_reboot,
++		.ident = "Dell Latitude E6520",
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E6520"),
++		},
++	},
++	{       /* Handle problems with rebooting on the OptiPlex 790. */
++		.callback = set_pci_reboot,
++		.ident = "Dell OptiPlex 790",
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 790"),
++		},
++	},
++	{	/* Handle problems with rebooting on the OptiPlex 990. */
++		.callback = set_pci_reboot,
++		.ident = "Dell OptiPlex 990",
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 990"),
++		},
++	},
++	{	/* Handle problems with rebooting on the OptiPlex 390. */
++		.callback = set_pci_reboot,
++		.ident = "Dell OptiPlex 390",
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 390"),
++		},
++	},
+ 	{ }
+ };
+ 
+ static int __init reboot_init(void)
+diff -iwBEr -U 4 linux-3.12-final/block/scsi_ioctl.c linux-3.12.4-trusty/block/scsi_ioctl.c
+--- linux-3.12-final/block/scsi_ioctl.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/block/scsi_ioctl.c	2013-12-08 23:28:36.000000000 +0000
+@@ -27,8 +27,11 @@
+ #include <linux/ratelimit.h>
+ #include <linux/slab.h>
+ #include <linux/times.h>
+ #include <linux/uio.h>
++#include <linux/fd.h>
++#include <linux/raid/md_u.h>
++#include <linux/mtio.h>
+ #include <asm/uaccess.h>
+ 
+ #include <scsi/scsi.h>
+ #include <scsi/scsi_ioctl.h>
+@@ -710,10 +713,19 @@
+ 	case SG_GET_TIMEOUT:
+ 	case SG_GET_RESERVED_SIZE:
+ 	case SG_SET_RESERVED_SIZE:
+ 	case SG_EMULATED_HOST:
++	case BLKFLSBUF:
++	case BLKROSET:
+ 		return 0;
+ 	case CDROM_GET_CAPABILITY:
++	case CDROM_DRIVE_STATUS:
++	case FDGETPRM:
++	case RAID_VERSION:
++	case MTIOCGET:
++#ifdef CONFIG_COMPAT
++	case 0x801c6d02:        /* MTIOCGET32 */
++#endif
+ 		/* Keep this until we remove the printk below.  udev sends it
+ 		 * and we do not want to spam dmesg about it.   CD-ROMs do
+ 		 * not have partitions, so we get here only for disks.
+ 		 */
+diff -iwBEr -U 4 linux-3.12-final/drivers/acpi/blacklist.c linux-3.12.4-trusty/drivers/acpi/blacklist.c
+--- linux-3.12-final/drivers/acpi/blacklist.c	2013-12-09 19:48:32.000000000 +0000
++++ linux-3.12.4-trusty/drivers/acpi/blacklist.c	2013-12-08 23:28:36.000000000 +0000
+@@ -82,20 +82,20 @@
+ 	int year;
+ 
+ 	/* Doesn't exist? Likely an old system */
+ 	if (!dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL)) {
+-		printk(KERN_INFO PREFIX "no DMI BIOS year, "
++		printk(KERN_ERR PREFIX "no DMI BIOS year, "
+ 			"acpi=force is required to enable ACPI\n" );
+ 		return 1;
+ 	}
+ 	/* 0? Likely a buggy new BIOS */
+ 	if (year == 0) {
+-		printk(KERN_INFO PREFIX "DMI BIOS year==0, "
++		printk(KERN_ERR PREFIX "DMI BIOS year==0, "
+ 			"assuming ACPI-capable machine\n" );
+ 		return 0;
+ 	}
+ 	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
+-		printk(KERN_INFO PREFIX "BIOS age (%d) fails cutoff (%d), "
++		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), "
+ 		       "acpi=force is required to enable ACPI\n",
+ 		       year, CONFIG_ACPI_BLACKLIST_YEAR);
+ 		return 1;
+ 	}
+@@ -313,8 +313,16 @@
+ 		},
+ 	},
+ 	{
+ 	.callback = dmi_disable_osi_win8,
++	.ident = "Lenovo ThinkPad T430",
++	.matches = {
++		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
++		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T430"),
++		},
++	},
++	{
++	.callback = dmi_disable_osi_win8,
+ 	.ident = "Lenovo ThinkPad T430s",
+ 	.matches = {
+ 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+ 		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T430s"),
+@@ -351,8 +359,24 @@
+ 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+ 		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X230"),
+ 		},
+ 	},
++	{
++	.callback = dmi_disable_osi_win8,
++	.ident = "Lenovo ThinkPad Edge E330",
++	.matches = {
++		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
++		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Edge E330"),
++		},
++	},
++	{
++	.callback = dmi_disable_osi_win8,
++	.ident = "Dell Inspiron 5537",
++	.matches = {
++		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
++		     DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5537"),
++		},
++	},
+ 
+ 	/*
+ 	 * BIOS invocation of _OSI(Linux) is almost always a BIOS bug.
+ 	 * Linux ignores it, except for the machines enumerated below.
+diff -iwBEr -U 4 linux-3.12-final/drivers/bluetooth/btusb.c linux-3.12.4-trusty/drivers/bluetooth/btusb.c
+--- linux-3.12-final/drivers/bluetooth/btusb.c	2013-12-09 19:48:27.000000000 +0000
++++ linux-3.12.4-trusty/drivers/bluetooth/btusb.c	2013-12-08 23:28:36.000000000 +0000
+@@ -23,8 +23,9 @@
+ 
+ #include <linux/module.h>
+ #include <linux/usb.h>
+ #include <linux/firmware.h>
++#include <linux/delay.h>
+ 
+ #include <net/bluetooth/bluetooth.h>
+ #include <net/bluetooth/hci_core.h>
+ 
+@@ -48,8 +49,9 @@
+ #define BTUSB_BROKEN_ISOC	0x20
+ #define BTUSB_WRONG_SCO_MTU	0x40
+ #define BTUSB_ATH3012		0x80
+ #define BTUSB_INTEL		0x100
++#define BTUSB_BCM_PATCHRAM	0x800
+ 
+ static struct usb_device_id btusb_table[] = {
+ 	/* Generic Bluetooth USB device */
+ 	{ USB_DEVICE_INFO(0xe0, 0x01, 0x01) },
+@@ -104,15 +106,22 @@
+ 	{ USB_DEVICE(0x0b05, 0x17b5) },
+ 	{ USB_DEVICE(0x0b05, 0x17cb) },
+ 	{ USB_DEVICE(0x04ca, 0x2003) },
+ 	{ USB_DEVICE(0x0489, 0xe042) },
+-	{ USB_DEVICE(0x413c, 0x8197) },
++	{ USB_DEVICE(0x13d3, 0x3388), .driver_info = BTUSB_BCM_PATCHRAM },
++	{ USB_DEVICE(0x13d3, 0x3389), .driver_info = BTUSB_BCM_PATCHRAM },
++	{ USB_DEVICE(0x413c, 0x8197), .driver_info = BTUSB_BCM_PATCHRAM },
++	{ USB_DEVICE(0x413c, 0x8143), .driver_info = BTUSB_BCM_PATCHRAM },
++
++	/* Broadcom BCM43142A0 */
++	{ USB_DEVICE(0x04ca, 0x2007), .driver_info = BTUSB_BCM_PATCHRAM },
++	{ USB_DEVICE(0x105b, 0xe065), .driver_info = BTUSB_BCM_PATCHRAM },
+ 
+ 	/* Foxconn - Hon Hai */
+-	{ USB_VENDOR_AND_INTERFACE_INFO(0x0489, 0xff, 0x01, 0x01) },
++	{ USB_VENDOR_AND_INTERFACE_INFO(0x0489, 0xff, 0x01, 0x01), .driver_info = BTUSB_BCM_PATCHRAM },
+ 
+ 	/*Broadcom devices with vendor specific id */
+-	{ USB_VENDOR_AND_INTERFACE_INFO(0x0a5c, 0xff, 0x01, 0x01) },
++	{ USB_VENDOR_AND_INTERFACE_INFO(0x0a5c, 0xff, 0x01, 0x01), .driver_info = BTUSB_BCM_PATCHRAM },
+ 
+ 	/* Belkin F8065bf - Broadcom based */
+ 	{ USB_VENDOR_AND_INTERFACE_INFO(0x050d, 0xff, 0x01, 0x01) },
+ 
+@@ -203,11 +212,8 @@
+ 
+ 	/* Kensington Bluetooth USB adapter */
+ 	{ USB_DEVICE(0x047d, 0x105e), .driver_info = BTUSB_WRONG_SCO_MTU },
+ 
+-	/* ISSC Bluetooth Adapter v3.1 */
+-	{ USB_DEVICE(0x1131, 0x1001), .driver_info = BTUSB_BROKEN_ISOC },
+-
+ 	/* RTX Telecom based adapters with buggy SCO support */
+ 	{ USB_DEVICE(0x0400, 0x0807), .driver_info = BTUSB_BROKEN_ISOC },
+ 	{ USB_DEVICE(0x0400, 0x080a), .driver_info = BTUSB_BROKEN_ISOC },
+ 
+@@ -1331,8 +1337,73 @@
+ 
+ 	return 0;
+ }
+ 
++static int btusb_setup_patchram_packet(struct hci_dev *hdev, u16 opcode, u32 plen, const void *param)
++{
++	struct sk_buff *skb;
++
++	skb = __hci_cmd_sync(hdev, opcode, plen, param, HCI_INIT_TIMEOUT);
++	if (IS_ERR(skb))
++		return PTR_ERR(skb);
++	kfree_skb(skb);
++	return 0;
++}
++
++#define PATCHRAM_NAME_LEN	20
++
++static int btusb_setup_patchram(struct hci_dev *hdev)
++{
++	struct btusb_data *data = hci_get_drvdata(hdev);
++	struct usb_device *udev = data->udev;
++	size_t pos = 0;
++	int err = 0;
++	char filename[PATCHRAM_NAME_LEN];
++	const struct firmware *fw;
++	u8 val = 0x00;
++
++	snprintf(filename, PATCHRAM_NAME_LEN, "fw-%04x_%04x.hcd",
++			le16_to_cpu(udev->descriptor.idVendor),
++			le16_to_cpu(udev->descriptor.idProduct));
++	if (request_firmware(&fw, (const char *) filename, &udev->dev) < 0) {
++		BT_INFO("can't load firmware, may not work correctly");
++		return 0;
++	}
++
++	err = btusb_setup_patchram_packet(hdev, 0x0c03, 1, &val);
++	if (err)
++		goto out;
++
++	err = btusb_setup_patchram_packet(hdev, 0xfc2e, 1, &val);
++	if (err)
++		goto out;
++
++	msleep(1000);
++	while (pos < fw->size) {
++		size_t len;
++		len = fw->data[pos + 2] + 3;
++		if (pos + len > fw->size) {
++			err = -EINVAL;
++			goto out;
++		}
++		err = btusb_setup_patchram_packet(hdev, le16_to_cpu(*(u16*)(fw->data + pos)),
++							fw->data[pos + 2] , &fw->data[pos + 3]);
++		if (err)
++			goto out;
++		pos += len;
++	}
++
++	err = btusb_setup_patchram_packet(hdev, 0x0c03, 1, &val);
++out:
++	release_firmware(fw);
++	if (err) {
++		BT_INFO("fail to load firmware");
++		return err;
++	}
++	BT_INFO("firmware loaded");
++	return 0;
++}
++
+ static int btusb_probe(struct usb_interface *intf,
+ 				const struct usb_device_id *id)
+ {
+ 	struct usb_endpoint_descriptor *ep_desc;
+@@ -1439,8 +1510,11 @@
+ 
+ 	if (id->driver_info & BTUSB_INTEL)
+ 		hdev->setup = btusb_setup_intel;
+ 
++	if (id->driver_info & BTUSB_BCM_PATCHRAM)
++		hdev->setup = btusb_setup_patchram;
++
+ 	/* Interface numbers are hardcoded in the specification */
+ 	data->isoc = usb_ifnum_to_if(data->udev, 1);
+ 
+ 	if (!reset)
+Only in linux-3.12-final/drivers/bluetooth: btusb.c.orig
+diff -iwBEr -U 4 linux-3.12-final/drivers/cdrom/cdrom.c linux-3.12.4-trusty/drivers/cdrom/cdrom.c
+--- linux-3.12-final/drivers/cdrom/cdrom.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/cdrom/cdrom.c	2013-11-30 04:51:08.000000000 +0000
+@@ -288,9 +288,9 @@
+ static bool debug;
+ /* default compatibility mode */
+ static bool autoclose=1;
+ static bool autoeject;
+-static bool lockdoor = 1;
++static bool lockdoor = 0;
+ /* will we ever get to use this... sigh. */
+ static bool check_media_type;
+ /* automatically restart mrw format */
+ static bool mrw_format_restart = 1;
+diff -iwBEr -U 4 linux-3.12-final/drivers/cpufreq/cpufreq.c linux-3.12.4-trusty/drivers/cpufreq/cpufreq.c
+--- linux-3.12-final/drivers/cpufreq/cpufreq.c	2013-12-09 19:48:30.000000000 +0000
++++ linux-3.12.4-trusty/drivers/cpufreq/cpufreq.c	2013-12-08 23:28:36.000000000 +0000
+@@ -2083,8 +2076,22 @@
+ /*********************************************************************
+  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *
+  *********************************************************************/
+ 
++static char cpufreq_driver_name[CPUFREQ_NAME_LEN];
++
++static int __init cpufreq_driver_setup(char *str)
++{
++	strlcpy(cpufreq_driver_name, str, CPUFREQ_NAME_LEN);
++	return 1;
++}
++
++/*
++ * Set this name to only allow one specific cpu freq driver, e.g.,
++ * cpufreq_driver=powernow-k8
++ */
++__setup("cpufreq_driver=", cpufreq_driver_setup);
++
+ /**
+  * cpufreq_register_driver - register a CPU Frequency driver
+  * @driver_data: A struct cpufreq_driver containing the values#
+  * submitted by the CPU Frequency driver.
+@@ -2105,9 +2112,15 @@
+ 	if (!driver_data || !driver_data->verify || !driver_data->init ||
+ 	    ((!driver_data->setpolicy) && (!driver_data->target)))
+ 		return -EINVAL;
+ 
+-	pr_debug("trying to register driver %s\n", driver_data->name);
++	pr_debug("trying to register driver %s, cpufreq_driver=%s\n",
++		driver_data->name, cpufreq_driver_name);
++
++	if (cpufreq_driver_name[0])
++		if (!driver_data->name ||
++			strcmp(cpufreq_driver_name, driver_data->name))
++				return -EINVAL;
+ 
+ 	if (driver_data->setpolicy)
+ 		driver_data->flags |= CPUFREQ_CONST_LOOPS;
+ 
+diff -iwBEr -U 4 linux-3.12-final/drivers/gpu/drm/drm_fops.c linux-3.12.4-trusty/drivers/gpu/drm/drm_fops.c
+--- linux-3.12-final/drivers/gpu/drm/drm_fops.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/gpu/drm/drm_fops.c	2013-12-08 23:28:36.000000000 +0000
+@@ -89,9 +89,10 @@
+ 
+ 	minor = idr_find(&drm_minors_idr, minor_id);
+ 	if (!minor)
+ 		return -ENODEV;
+-
++	if (IS_ERR(minor))
++		return PTR_ERR(minor);
+ 	if (!(dev = minor->dev))
+ 		return -ENODEV;
+ 
+ 	if (drm_device_is_unplugged(dev))
+@@ -155,9 +156,12 @@
+ 	mutex_lock(&drm_global_mutex);
+ 	minor = idr_find(&drm_minors_idr, minor_id);
+ 	if (!minor)
+ 		goto out;
+-
++	if (IS_ERR(minor)) {
++		err = PTR_ERR(minor);
++		goto out;
++	}
+ 	if (!(dev = minor->dev))
+ 		goto out;
+ 
+ 	if (drm_device_is_unplugged(dev))
+diff -iwBEr -U 4 linux-3.12-final/drivers/gpu/drm/drm_pci.c linux-3.12.4-trusty/drivers/gpu/drm/drm_pci.c
+--- linux-3.12-final/drivers/gpu/drm/drm_pci.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/gpu/drm/drm_pci.c	2013-12-08 23:28:36.000000000 +0000
+@@ -378,8 +378,12 @@
+ 	}
+ 
+ 	list_add_tail(&dev->driver_item, &driver->device_list);
+ 
++	if (drm_core_check_feature(dev, DRIVER_MODESET))
++		idr_replace(&drm_minors_idr, dev->control, dev->control->index);
++	idr_replace(&drm_minors_idr, dev->primary, dev->primary->index);
++
+ 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
+ 		 driver->name, driver->major, driver->minor, driver->patchlevel,
+ 		 driver->date, pci_name(pdev), dev->primary->index);
+ 
+diff -iwBEr -U 4 linux-3.12-final/drivers/gpu/drm/drm_platform.c linux-3.12.4-trusty/drivers/gpu/drm/drm_platform.c
+--- linux-3.12-final/drivers/gpu/drm/drm_platform.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/gpu/drm/drm_platform.c	2013-12-08 23:28:36.000000000 +0000
+@@ -94,8 +94,12 @@
+ 	}
+ 
+ 	list_add_tail(&dev->driver_item, &driver->device_list);
+ 
++	if (drm_core_check_feature(dev, DRIVER_MODESET))
++		idr_replace(&drm_minors_idr, dev->control, dev->control->index);
++	idr_replace(&drm_minors_idr, dev->primary, dev->primary->index);
++
+ 	mutex_unlock(&drm_global_mutex);
+ 
+ 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
+ 		 driver->name, driver->major, driver->minor, driver->patchlevel,
+diff -iwBEr -U 4 linux-3.12-final/drivers/gpu/drm/i915/intel_display.c linux-3.12.4-trusty/drivers/gpu/drm/i915/intel_display.c
+--- linux-3.12-final/drivers/gpu/drm/i915/intel_display.c	2013-12-09 19:48:27.000000000 +0000
++++ linux-3.12.4-trusty/drivers/gpu/drm/i915/intel_display.c	2013-12-08 23:28:49.000000000 +0000
+@@ -9965,10 +9965,11 @@
+  * BLM_PCH_PWM_ENABLE is set.
+  */
+ static void quirk_no_pcm_pwm_enable(struct drm_device *dev)
+ {
+-	if (i915_disable_pch_pwm < 0)
+-		i915_disable_pch_pwm = 1;
++	struct drm_i915_private *dev_priv = dev->dev_private;
++	dev_priv->quirks |= QUIRK_NO_PCH_PWM_ENABLE;
++	DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
+ }
+ 
+ struct intel_quirk {
+ 	int device;
+@@ -10014,9 +10015,10 @@
+ 
+ 	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
+ 	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
+ 
+-	/* 830 needs to leave pipe A & dpll A up */
++	/* 830/845 need to leave pipe A & dpll A up */
++	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+ 	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+ 
+ 	/* Lenovo U160 cannot use SSC on LVDS */
+ 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
+@@ -10063,14 +10065,8 @@
+ 	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
+ 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
+ 			intel_dmi_quirks[i].hook(dev);
+ 	}
+-
+-	if (i915_disable_pch_pwm == 1) {
+-		struct drm_i915_private *dev_priv = dev->dev_private;
+-		dev_priv->quirks |= QUIRK_NO_PCH_PWM_ENABLE;
+-		DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
+-	}
+ }
+ 
+ /* Disable the VGA plane that we never use */
+ static void i915_disable_vga(struct drm_device *dev)
+diff -iwBEr -U 4 linux-3.12-final/drivers/gpu/drm/i915/intel_dp.c linux-3.12.4-trusty/drivers/gpu/drm/i915/intel_dp.c
+--- linux-3.12-final/drivers/gpu/drm/i915/intel_dp.c	2013-12-09 19:48:26.000000000 +0000
++++ linux-3.12.4-trusty/drivers/gpu/drm/i915/intel_dp.c	2013-12-08 23:28:36.000000000 +0000
+@@ -1370,28 +1370,8 @@
+ 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+ 
+ 	if ((port == PORT_A) || !HAS_PCH_CPT(dev)) {
+ 		tmp = I915_READ(intel_dp->output_reg);
+-
+-	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp &&
+-	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {
+-		/*
+-		 * This is a big fat ugly hack.
+-		 *
+-		 * Some machines in UEFI boot mode provide us a VBT that has 18
+-		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
+-		 * unknown we fail to light up. Yet the same BIOS boots up with
+-		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
+-		 * max, not what it tells us to use.
+-		 *
+-		 * Note: This will still be broken if the eDP panel is not lit
+-		 * up by the BIOS, and thus we can't get the mode at module
+-		 * load.
+-		 */
+-		DRM_DEBUG_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+-			      pipe_config->pipe_bpp, dev_priv->vbt.edp_bpp);
+-		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
+-	}
+ 		if (tmp & DP_SYNC_HS_HIGH)
+ 			flags |= DRM_MODE_FLAG_PHSYNC;
+ 		else
+ 			flags |= DRM_MODE_FLAG_NHSYNC;
+diff -iwBEr -U 4 linux-3.12-final/drivers/gpu/drm/omapdrm/Makefile linux-3.12.4-trusty/drivers/gpu/drm/omapdrm/Makefile
+--- linux-3.12-final/drivers/gpu/drm/omapdrm/Makefile	2013-12-09 19:48:26.000000000 +0000
++++ linux-3.12.4-trusty/drivers/gpu/drm/omapdrm/Makefile	2013-11-30 04:46:16.000000000 +0000
+@@ -2,9 +2,9 @@
+ # Makefile for the drm device driver.  This driver provides support for the
+ # Direct Rendering Infrastructure (DRI)
+ #
+ 
+-ccflags-y := -Iinclude/drm
++ccflags-y := -Iinclude/drm -Werror
+ omapdrm-y := omap_drv.o \
+ 	omap_irq.o \
+ 	omap_debugfs.o \
+ 	omap_crtc.o \
+diff -iwBEr -U 4 linux-3.12-final/drivers/hv/hv.c linux-3.12.4-trusty/drivers/hv/hv.c
+--- linux-3.12-final/drivers/hv/hv.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/hv/hv.c	2013-12-08 23:28:36.000000000 +0000
+@@ -30,8 +30,16 @@
+ #include <linux/interrupt.h>
+ #include <asm/hyperv.h>
+ #include "hyperv_vmbus.h"
+ 
++#ifndef PKG_ABI
++/*
++ * Preserve the ability to 'make deb-pkg' since PKG_ABI is provided
++ * by the Ubuntu build rules.
++ */
++#define PKG_ABI 0
++#endif
++
+ /* The one and only */
+ struct hv_context hv_context = {
+ 	.synic_initialized	= false,
+ 	.hypercall_page		= NULL,
+@@ -147,9 +155,9 @@
+ 
+ 	/*
+ 	 * Write our OS ID.
+ 	 */
+-	hv_context.guestid = generate_guest_id(0, LINUX_VERSION_CODE, 0);
++	hv_context.guestid = generate_guest_id(0, LINUX_VERSION_CODE, PKG_ABI);
+ 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
+ 
+ 	/* See if the hypercall page is already set */
+ 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
+diff -iwBEr -U 4 linux-3.12-final/drivers/input/mouse/cypress_ps2.c linux-3.12.4-trusty/drivers/input/mouse/cypress_ps2.c
+--- linux-3.12-final/drivers/input/mouse/cypress_ps2.c	2013-12-09 19:48:27.000000000 +0000
++++ linux-3.12.4-trusty/drivers/input/mouse/cypress_ps2.c	2013-12-08 23:28:49.000000000 +0000
+@@ -390,9 +390,11 @@
+ 			INPUT_MT_DROP_UNUSED|INPUT_MT_TRACK);
+ 	if (ret < 0)
+ 		return ret;
+ 
++#if ( CYPRESS_SIMULATED_MT != 1 )
+ 	__set_bit(INPUT_PROP_SEMI_MT, input->propbit);
++#endif
+ 
+ 	input_abs_set_res(input, ABS_X, cytp->tp_res_x);
+ 	input_abs_set_res(input, ABS_Y, cytp->tp_res_y);
+ 
+@@ -479,8 +481,24 @@
+ 		report_data->contacts[1].y =
+ 			((packet[5] & 0x0f) << 8) | packet[7];
+ 		if (cytp->mode & CYTP_BIT_ABS_PRESSURE)
+ 			report_data->contacts[1].z = report_data->contacts[0].z;
++#if ( CYPRESS_SIMULATED_MT == 1 )
++		/* simulate contact positions for >2 fingers */
++		if ( report_data->contact_cnt >= 3 ) {
++			int i;
++			for ( i=1; i<report_data->contact_cnt; i++ ) {
++			    report_data->contacts[i].x =
++					    report_data->contacts[0].x
++					    + 100*(i)*((i%2)?-1:1);
++			    report_data->contacts[i].y =
++					    report_data->contacts[0].y;
++			    if (cytp->mode & CYTP_BIT_ABS_PRESSURE)
++				    report_data->contacts[i].z =
++					    report_data->contacts[0].z;
++			}
++		}
++#endif
+ 	}
+ 
+ 	report_data->left = (header_byte & BTN_LEFT_BIT) ? 1 : 0;
+ 	report_data->right = (header_byte & BTN_RIGHT_BIT) ? 1 : 0;
+diff -iwBEr -U 4 linux-3.12-final/drivers/input/mouse/cypress_ps2.h linux-3.12.4-trusty/drivers/input/mouse/cypress_ps2.h
+--- linux-3.12-final/drivers/input/mouse/cypress_ps2.h	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/input/mouse/cypress_ps2.h	2013-11-30 04:51:16.000000000 +0000
+@@ -129,9 +129,20 @@
+ #define RESP_ENABLE_BIT     0x20
+ #define RESP_REMOTE_BIT     0x40
+ #define RESP_SMBUS_BIT      0x80
+ 
++/*
++ * CYPRESS_SIMULATED_MT
++ *   set to 1 for simulated multitouch (up to 5 contact points)
++ *   set to 0 for SEMI_MT (only 2 corner points, and count of fingers)
++ */
++#define CYPRESS_SIMULATED_MT 1
++
++#if ( CYPRESS_SIMULATED_MT == 1 )
++# define CYTP_MAX_MT_SLOTS 5
++#else
+ #define CYTP_MAX_MT_SLOTS 2
++#endif
+ 
+ struct cytp_contact {
+ 	int x;
+ 	int y;
+diff -iwBEr -U 4 linux-3.12-final/drivers/input/mouse/synaptics.c linux-3.12.4-trusty/drivers/input/mouse/synaptics.c
+--- linux-3.12-final/drivers/input/mouse/synaptics.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/input/mouse/synaptics.c	2013-11-30 04:51:10.000000000 +0000
+@@ -1316,9 +1316,11 @@
+ 		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
+ 		/* Clickpads report only left button */
+ 		__clear_bit(BTN_RIGHT, dev->keybit);
+ 		__clear_bit(BTN_MIDDLE, dev->keybit);
+-	}
++	} else if (SYN_CAP_CLICKPAD2BTN(priv->ext_cap_0c) ||
++		   SYN_CAP_CLICKPAD2BTN2(priv->ext_cap_0c))
++		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
+ }
+ 
+ static ssize_t synaptics_show_disable_gesture(struct psmouse *psmouse,
+ 					      void *data, char *buf)
+diff -iwBEr -U 4 linux-3.12-final/drivers/input/mouse/synaptics.h linux-3.12.4-trusty/drivers/input/mouse/synaptics.h
+--- linux-3.12-final/drivers/input/mouse/synaptics.h	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/input/mouse/synaptics.h	2013-11-30 04:51:10.000000000 +0000
+@@ -80,8 +80,9 @@
+  * 2	0x20	report min		query 0x0f gives min coord reported
+  */
+ #define SYN_CAP_CLICKPAD(ex0c)		((ex0c) & 0x100000) /* 1-button ClickPad */
+ #define SYN_CAP_CLICKPAD2BTN(ex0c)	((ex0c) & 0x000100) /* 2-button ClickPad */
++#define SYN_CAP_CLICKPAD2BTN2(ex0c)	((ex0c) & 0x200000) /* 2-button ClickPad */
+ #define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & 0x020000)
+ #define SYN_CAP_MIN_DIMENSIONS(ex0c)	((ex0c) & 0x002000)
+ #define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
+ #define SYN_CAP_REDUCED_FILTERING(ex0c)	((ex0c) & 0x000400)
+diff -iwBEr -U 4 linux-3.12-final/drivers/pci/quirks.c linux-3.12.4-trusty/drivers/pci/quirks.c
+--- linux-3.12-final/drivers/pci/quirks.c	2013-12-09 19:48:30.000000000 +0000
++++ linux-3.12.4-trusty/drivers/pci/quirks.c	2013-12-08 23:28:37.000000000 +0000
+@@ -43,8 +43,23 @@
+ }
+ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_ANY_ID, PCI_ANY_ID,
+ 				PCI_CLASS_BRIDGE_HOST, 8, quirk_mmio_always_on);
+ 
++/* The BAR0 ~ BAR4 of Marvell 9125 device can't be accessed
++*  by IO resource file, and need to skip the files
++*/
++static void quirk_marvell_mask_bar(struct pci_dev *dev)
++{
++	int i;
++
++	for (i = 0; i < 5; i++)
++		if (dev->resource[i].start)
++			dev->resource[i].start =
++				dev->resource[i].end = 0;
++}
++DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9125,
++				quirk_marvell_mask_bar);
++
+ /* The Mellanox Tavor device gives false positive parity errors
+  * Mark this device with a broken_parity_status, to allow
+  * PCI scanning code to "skip" this now blacklisted device.
+  */
+diff -iwBEr -U 4 linux-3.12-final/drivers/md/dm-crypt.c linux-3.12.4-trusty/drivers/md/dm-crypt.c
+--- linux-3.12-final/drivers/md/dm-crypt.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/md/dm-crypt.c	2013-12-08 23:28:36.000000000 +0000
+@@ -1814,8 +1814,14 @@
+ 
+ 	return fn(ti, cc->dev, cc->start, ti->len, data);
+ }
+ 
++static void crypt_io_hints(struct dm_target *ti,
++			    struct queue_limits *limits)
++{
++	limits->max_write_same_sectors = 0;
++}
++
+ static struct target_type crypt_target = {
+ 	.name   = "crypt",
+ 	.version = {1, 12, 1},
+ 	.module = THIS_MODULE,
+@@ -1828,8 +1834,9 @@
+ 	.resume = crypt_resume,
+ 	.message = crypt_message,
+ 	.merge  = crypt_merge,
+ 	.iterate_devices = crypt_iterate_devices,
++	.io_hints = crypt_io_hints,
+ };
+ 
+ static int __init dm_crypt_init(void)
+ {
+diff -iwBEr -U 4 linux-3.12-final/drivers/media/usb/uvc/uvc_driver.c linux-3.12.4-trusty/drivers/media/usb/uvc/uvc_driver.c
+--- linux-3.12-final/drivers/media/usb/uvc/uvc_driver.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/media/usb/uvc/uvc_driver.c	2013-11-30 04:51:18.000000000 +0000
+@@ -2209,8 +2209,17 @@
+ 	  .bInterfaceClass	= USB_CLASS_VIDEO,
+ 	  .bInterfaceSubClass	= 1,
+ 	  .bInterfaceProtocol	= 0,
+ 	  .driver_info		= UVC_QUIRK_PROBE_DEF },
++	/* Alienware X51*/
++	{ .match_flags          = USB_DEVICE_ID_MATCH_DEVICE
++				  | USB_DEVICE_ID_MATCH_INT_INFO,
++	  .idVendor             = 0x05a9,
++	  .idProduct            = 0x2643,
++	  .bInterfaceClass      = USB_CLASS_VIDEO,
++	  .bInterfaceSubClass   = 1,
++	  .bInterfaceProtocol   = 0,
++	  .driver_info          = UVC_QUIRK_PROBE_DEF },
+ 	/* Apple Built-In iSight */
+ 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+ 				| USB_DEVICE_ID_MATCH_INT_INFO,
+ 	  .idVendor		= 0x05ac,
+diff -iwBEr -U 4 linux-3.12-final/drivers/net/ethernet/broadcom/tg3.c linux-3.12.4-trusty/drivers/net/ethernet/broadcom/tg3.c
+--- linux-3.12-final/drivers/net/ethernet/broadcom/tg3.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/net/ethernet/broadcom/tg3.c	2013-12-08 23:28:37.000000000 +0000
+@@ -325,8 +325,9 @@
+ 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57781)},
+ 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57785)},
+ 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57761)},
+ 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57765)},
++	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57786)},
+ 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57791),
+ 	 .driver_data = TG3_DRV_DATA_FLAG_10_100_ONLY},
+ 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, TG3PCI_DEVICE_TIGON3_57795),
+ 	 .driver_data = TG3_DRV_DATA_FLAG_10_100_ONLY},
+linux-3.12.4-trusty/drivers/net/ethernet/neterion/vxge/vxge-main.c
+--- linux-3.12-final/drivers/net/ethernet/neterion/vxge/vxge-main.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/net/ethernet/neterion/vxge/vxge-main.c	2013-12-08 23:28:37.000000000 +0000
+@@ -4201,8 +4201,11 @@
+ 	release_firmware(fw);
+ 	return ret;
+ }
+ 
++#define VXGE_PXE_FIRMWARE "vxge/X3fw-pxe.ncf"
++#define VXGE_FIRMWARE "vxge/X3fw.ncf"
++
+ static int vxge_probe_fw_update(struct vxgedev *vdev)
+ {
+ 	u32 maj, min, bld;
+ 	int ret, gpxe = 0;
+@@ -4243,11 +4246,11 @@
+ 				break;
+ 			}
+ 	}
+ 	if (gpxe)
+-		fw_name = "vxge/X3fw-pxe.ncf";
++		fw_name = VXGE_PXE_FIRMWARE;
+ 	else
+-		fw_name = "vxge/X3fw.ncf";
++		fw_name = VXGE_FIRMWARE;
+ 
+ 	ret = vxge_fw_upgrade(vdev, fw_name, 0);
+ 	/* -EINVAL and -ENOENT are not fatal errors for flashing firmware on
+ 	 * probe, so ignore them
+@@ -4852,4 +4855,6 @@
+ 	kfree(driver_config);
+ }
+ module_init(vxge_starter);
+ module_exit(vxge_closer);
++MODULE_FIRMWARE(VXGE_PXE_FIRMWARE);
++MODULE_FIRMWARE(VXGE_FIRMWARE);
+diff -iwBEr -U 4 linux-3.12-final/drivers/platform/x86/intel_ips.c linux-3.12.4-trusty/drivers/platform/x86/intel_ips.c
+--- linux-3.12-final/drivers/platform/x86/intel_ips.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/platform/x86/intel_ips.c	2013-11-30 04:51:18.000000000 +0000
+@@ -1500,8 +1500,16 @@
+ 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "HP ProBook"),
+ 		},
+ 	},
++	{
++		.callback = ips_blacklist_callback,
++		.ident = "G60JX",
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "G60JX"),
++		},
++	},
+ 	{ }	/* terminating entry */
+ };
+ 
+ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
+diff -iwBEr -U 4 linux-3.12-final/drivers/platform/x86/sony-laptop.c linux-3.12.4-trusty/drivers/platform/x86/sony-laptop.c
+--- linux-3.12-final/drivers/platform/x86/sony-laptop.c	2013-12-09 19:48:27.000000000 +0000
++++ linux-3.12.4-trusty/drivers/platform/x86/sony-laptop.c	2013-12-08 23:28:49.000000000 +0000
+@@ -2918,8 +2918,12 @@
+ 	unsigned long		mask;
+ 	struct sonypi_event	*events;
+ };
+ 
++struct sony_pic_quirk_entry {
++	u8				set_wwan_power;
++};
++
+ struct sony_pic_dev {
+ 	struct acpi_device		*acpi_dev;
+ 	struct sony_pic_irq		*cur_irq;
+ 	struct sony_pic_ioport		*cur_ioport;
+@@ -2928,8 +2932,9 @@
+ 	struct mutex			lock;
+ 	struct sonypi_eventtypes	*event_types;
+ 	int                             (*handle_irq)(const u8, const u8);
+ 	int				model;
++	struct sony_pic_quirk_entry	*quirks;
+ 	u16				evport_offset;
+ 	u8				camera_power;
+ 	u8				bluetooth_power;
+ 	u8				wwan_power;
+@@ -4363,8 +4368,14 @@
+ 	result = sysfs_create_group(&sony_pf_device->dev.kobj, &spic_attribute_group);
+ 	if (result)
+ 		goto err_remove_pf;
+ 
++	if (spic_dev.quirks && spic_dev.quirks->set_wwan_power) {
++		/*
++		 * Power isn't enabled by default.
++		 */
++		__sony_pic_set_wwanpower(1);
++	}
+ 	return 0;
+ 
+ err_remove_pf:
+ 	sony_pf_remove();
+@@ -4437,8 +4448,18 @@
+ 		},
+ 	.drv.pm = &sony_pic_pm,
+ };
+ 
++static struct sony_pic_quirk_entry sony_pic_vaio_vgn = {
++	.set_wwan_power = 1,
++};
++
++static int dmi_matched(const struct dmi_system_id *dmi)
++{
++	spic_dev.quirks = dmi->driver_data;
++	return 0;
++}
++
+ static struct dmi_system_id __initdata sonypi_dmi_table[] = {
+ 	{
+ 		.ident = "Sony Vaio",
+ 		.matches = {
+@@ -4451,8 +4472,10 @@
+ 		.matches = {
+ 			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-"),
+ 		},
++		.callback = dmi_matched,
++		.driver_data = &sony_pic_vaio_vgn,
+ 	},
+ 	{ }
+ };
+ 
+diff -iwBEr -U 4 linux-3.12-final/drivers/scsi/storvsc_drv.c linux-3.12.4-trusty/drivers/scsi/storvsc_drv.c
+--- linux-3.12-final/drivers/scsi/storvsc_drv.c	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/scsi/storvsc_drv.c	2013-12-08 23:28:37.000000000 +0000
+@@ -1437,8 +1437,16 @@
+ 	blk_queue_rq_timeout(sdevice->request_queue, (storvsc_timeout * HZ));
+ 
+ 	sdevice->no_write_same = 1;
+ 
++	/*
++	 * hyper-v lies about its capabilities indicating it is only SPC-2
++	 * compliant, but actually implements the core SPC-3 features.
++	 * If we pretend to be SPC-3, we send RC16 which activates trim and
++	 * will query the appropriate VPD pages to enable trim.
++	 */
++	sdevice->scsi_level = SCSI_SPC_3;
++
+ 	return 0;
+ }
+ 
+ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
+diff -iwBEr -U 4 linux-3.12-final/drivers/usb/storage/unusual_devs.h linux-3.12.4-trusty/drivers/usb/storage/unusual_devs.h
+--- linux-3.12-final/drivers/usb/storage/unusual_devs.h	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/drivers/usb/storage/unusual_devs.h	2013-11-30 04:51:09.000000000 +0000
+@@ -1190,8 +1190,15 @@
+ 		"Mass Storage",
+ 		USB_SC_DEVICE, USB_PR_DEVICE, option_ms_init,
+ 		0),
+ 
++/* Reported by Timo Aaltonen <tjaalton@ubuntu.com> */
++UNUSUAL_DEV( 0x0af0, 0x7011, 0x0000, 0x9999,
++		"Option",
++		"Mass Storage",
++		USB_SC_DEVICE, USB_PR_DEVICE, option_ms_init,
++		0 ),
++
+ /* Reported by F. Aben <f.aben@option.com>
+  * This device (wrongly) has a vendor-specific device descriptor.
+  * The entry is needed so usb-storage can bind to it's mass-storage
+  * interface as an interface driver */
+diff -iwBEr -U 4 linux-3.12-final/firmware/bnx2/bnx2-rv2p-09-6.0.17.fw.ihex linux-3.12.4-trusty/firmware/bnx2/bnx2-rv2p-09-6.0.17.fw.ihex
+--- linux-3.12-final/firmware/bnx2/bnx2-rv2p-09-6.0.17.fw.ihex	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/firmware/bnx2/bnx2-rv2p-09-6.0.17.fw.ihex	2013-11-30 04:51:13.000000000 +0000
+@@ -2,10 +2,9 @@
+ :1000100000000000000000000000000000000000E0
+ :1000200000000000000000000000000000000000D0
+ :1000300000000E88000009500000000500000000CC
+ :1000400000000000000000000000000000000000B0
+-:080050000000000000000000A8
+-:0800580000000010B180000659
++:10005000000000000000000000000010B180000659
+ :100060000000001F05060011000000080500FFFF4A
+ :10007000000000180002000000000008050000FF5A
+ :10008000000000180002000000000008AC000001A1
+ :1000900000000008078000000000000C2F80000115
+@@ -381,12 +380,4 @@
+ :1017B000000000002348000000000008220000177D
+ :1017C0000000000C2980000000000010001F000035
+ :0817D000000000188000FE3546
+ :00000001FF
+-/*
+- * This file contains firmware data derived from proprietary unpublished
+- * source code, Copyright (c) 2004 - 2009 Broadcom Corporation.
+- *
+- * Permission is hereby granted for the distribution of this firmware data
+- * in hexadecimal or equivalent format, provided this copyright notice is
+- * accompanying it.
+- */
+diff -iwBEr -U 4 linux-3.12-final/net/ipv6/addrconf.c linux-3.12.4-trusty/net/ipv6/addrconf.c
+--- linux-3.12-final/net/ipv6/addrconf.c	2013-12-09 19:48:26.000000000 +0000
++++ linux-3.12.4-trusty/net/ipv6/addrconf.c	2013-12-08 23:28:39.000000000 +0000
+@@ -3136,9 +3136,8 @@
+ 	if (ifp->state == INET6_IFADDR_STATE_DEAD)
+ 		goto out;
+ 
+ 	if (dev->flags&(IFF_NOARP|IFF_LOOPBACK) ||
+-	    !(dev->flags&IFF_MULTICAST) ||
+ 	    idev->cnf.accept_dad < 1 ||
+ 	    !(ifp->flags&IFA_F_TENTATIVE) ||
+ 	    ifp->flags & IFA_F_NODAD) {
+ 		ifp->flags &= ~(IFA_F_TENTATIVE|IFA_F_OPTIMISTIC|IFA_F_DADFAILED);
+@@ -3247,10 +3246,9 @@
+ 		   ifp->idev->valid_ll_addr_cnt == 1;
+ 	send_rs = send_mld &&
+ 		  ipv6_accept_ra(ifp->idev) &&
+ 		  ifp->idev->cnf.rtr_solicits > 0 &&
+-		  (dev->flags&IFF_LOOPBACK) == 0 &&
+-		  (dev->flags&IFF_MULTICAST);
++		  (dev->flags&IFF_LOOPBACK) == 0;
+ 	spin_unlock(&ifp->lock);
+ 	read_unlock_bh(&ifp->idev->lock);
+ 
+ 	/* While dad is in progress mld report's source address is in6_addrany.
+@@ -4729,8 +4727,89 @@
+ 		*ppos = pos;
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_IPV6_PRIVACY
++static void dev_tempaddr_change(struct inet6_dev *idev)
++{
++	struct netdev_notifier_info info;
++
++	if (!idev || !idev->dev)
++		return;
++
++	netdev_notifier_info_init(&info, idev->dev);
++	if (!idev->cnf.disable_ipv6) {
++		/* If ipv6 is enabled, try to bring down and back up the
++		 * interface to get new temporary addresses created
++		 */
++		addrconf_notify(NULL, NETDEV_DOWN, &info);
++		addrconf_notify(NULL, NETDEV_UP, &info);
++	}
++}
++
++static void addrconf_tempaddr_change(struct net *net, __s32 newf)
++{
++	struct net_device *dev;
++	struct inet6_dev *idev;
++
++	rcu_read_lock();
++	for_each_netdev_rcu(net, dev) {
++		idev = __in6_dev_get(dev);
++		if (idev) {
++			int changed = (!idev->cnf.use_tempaddr) ^ (!newf);
++			idev->cnf.use_tempaddr = newf;
++			if (changed)
++				dev_tempaddr_change(idev);
++		}
++	}
++	rcu_read_unlock();
++}
++
++static int addrconf_use_tempaddr(struct ctl_table *table, int *p, int old)
++{
++	struct net *net;
++
++	net = (struct net *)table->extra2;
++
++	if (p == &net->ipv6.devconf_dflt->use_tempaddr)
++		return 0;
++
++	if (!rtnl_trylock()) {
++		/* Restore the original values before restarting */
++		*p = old;
++		return restart_syscall();
++	}
++
++	if (p == &net->ipv6.devconf_all->use_tempaddr) {
++		__s32 newf = net->ipv6.devconf_all->use_tempaddr;
++		net->ipv6.devconf_dflt->use_tempaddr = newf;
++		addrconf_tempaddr_change(net, newf);
++	} else if ((!*p) ^ (!old))
++		dev_tempaddr_change((struct inet6_dev *)table->extra1);
++
++	rtnl_unlock();
++	return 0;
++}
++
++static
++int addrconf_sysctl_tempaddr(ctl_table *ctl, int write,
++			     void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	int *valp = ctl->data;
++	int val = *valp;
++	loff_t pos = *ppos;
++	int ret;
++
++	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
++
++	if (write)
++		ret = addrconf_use_tempaddr(ctl, valp, val);
++	if (ret)
++		*ppos = pos;
++	return ret;
++}
++#endif
++
+ static struct addrconf_sysctl_table
+ {
+ 	struct ctl_table_header *sysctl_header;
+ 	struct ctl_table addrconf_vars[DEVCONF_MAX+1];
+@@ -4835,9 +4914,9 @@
+ 			.procname	= "use_tempaddr",
+ 			.data		= &ipv6_devconf.use_tempaddr,
+ 			.maxlen		= sizeof(int),
+ 			.mode		= 0644,
+-			.proc_handler	= proc_dointvec,
++			.proc_handler	= addrconf_sysctl_tempaddr,
+ 		},
+ 		{
+ 			.procname	= "temp_valid_lft",
+ 			.data		= &ipv6_devconf.temp_valid_lft,
+diff -iwBEr -U 4 linux-3.12-final/scripts/kconfig/lkc.h linux-3.12.4-trusty/scripts/kconfig/lkc.h
+--- linux-3.12-final/scripts/kconfig/lkc.h	2013-11-03 23:41:51.000000000 +0000
++++ linux-3.12.4-trusty/scripts/kconfig/lkc.h	2013-11-30 04:51:11.000000000 +0000
+@@ -96,9 +96,11 @@
+ 
+ /* confdata.c and expr.c */
+ static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
+ {
+-	assert(len != 0);
++	//assert(len != 0);
++	if (len == 0)
++		return;
+ 
+ 	if (fwrite(str, len, count, out) != count)
+ 		fprintf(stderr, "Error in writing or end of file.\n");
+ }

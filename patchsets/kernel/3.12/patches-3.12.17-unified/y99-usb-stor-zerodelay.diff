@@ -1,0 +1,23 @@
+--- linux-3.2/drivers/usb/storage/usb.c.orig	2012-03-03 22:24:42.000000000 +0000
++++ linux-3.2/drivers/usb/storage/usb.c	2012-03-03 22:26:04.000000000 +0000
+@@ -78,7 +78,7 @@
+ MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
+ MODULE_LICENSE("GPL");
+ 
+-static unsigned int delay_use = 1;
++static unsigned int delay_use = 0;
+ module_param(delay_use, uint, S_IRUGO | S_IWUSR);
+ MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
+ 
+@@ -969,9 +969,10 @@
+ 	/* Submit the delayed_work for SCSI-device scanning */
+ 	usb_autopm_get_interface_no_resume(us->pusb_intf);
+ 	set_bit(US_FLIDX_SCAN_PENDING, &us->dflags);
+-
++  /*
+ 	if (delay_use > 0)
+ 		dev_dbg(dev, "waiting for device to settle before scanning\n");
++		*/
+ 	queue_delayed_work(system_freezable_wq, &us->scan_dwork,
+ 			delay_use * HZ);
+ 	return 0;

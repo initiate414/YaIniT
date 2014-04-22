@@ -21,31 +21,12 @@ SystemV-INIT, to specify an own ASH-script which does set all necessary
 parameters to satisfy the target system's configuration needs and boot
 into it, if necessary with an own YaIniT-Kernel.     
 
-
-Files:
-
-.  yatiny.gz
-   gzip-compressed uucp archive with the last running version
-   to put into your preinstalled distro's boot/ directory for execution with a kernel,
-   which must have builtin the bockdevice drivers to find your
-   rootfilesystem and the filesystem drivers to mount it.  
-   yatiniy.gz is nothing other than 
-   `mkyainitrd gz` 
-   from the yainit-init folder.  
-   With bultin keyboard dirvers and specifying 'debug' 
-   at the kernel commandline, yainit's  yatiny initial ramdisk 
-   will stop the system boot at halt marks and allow you to copy 
-   the well matching and optimized BusyBox executable for your machine
-   in your boot directory.  
-.  yatiny-2se3.gz 
-   same as yatiny.gz but containing the kernel modules for
-   kernel 3.12.4.bfs4444yainitu-2se3
    
 Folders:
 
 .  yainit-init
    contains an executable of BusyBox at bin/
-   configuration files to customize at .config/
+   configuration files to customize at ./ with
    all scripts in form of BASH and ASH readable shellcode
    
 .  tools-scripts
@@ -61,5 +42,5 @@ Folders:
    contains the files with the system documentation
    
 
-Dieter Miosga, 2014-04-08 
+Dieter Miosga, 2014-04-22 
 

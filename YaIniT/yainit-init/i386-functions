@@ -1,6 +1,6 @@
 #
 #  I386-FUNCTIONS architecture specific functions and variables for YaIniT Universal INIT Tool with busybox
-#  (C) Dieter Miosga , 2008-2014-03-31
+#  (C) Dieter Miosga , 2008-2014-04-22
 #
 #set -x
 
@@ -8,20 +8,6 @@ ALLEXTENTS="x86 x86mmx i686 k6p3 k7p4 k8p5 k9c2 atom core2 coreix coreavx coreav
 ALLSUBEXTENTS="x86 mmx sse sse2 sse3 ssse3 sse4a sse4x avx avx2"
 ALLCPUMODS="fpu mmx 3dnow 3dnowext pat sse sse2 pni ssse3 sse4 sse4a sse4_1 sse4_2 avx avx2 bmi bmi2"
 ALLRTEXTENTS="tar.bz2 tar.lzma tar.xz tar.gz"  # "tar.Z tar.z tgz tbz tlz txz tz"
-# these to set in initvariables
-#ALLARCHSPECS=""                                      
-#CPUINFO=""                                          
-#MEMINFO=""                                           
-#TOTALMEM=""                                          
-#CPUMODEL=""                                          
-#CPUFREQ=""                                           
-#L1CACHE=""                                           
-#L2CACHE=""                                           
-#L3CACHE=""
-#NRCPUS=""
-#EXTENDU=""
-#MAXCMDSET=""
-#ARCHTEXT=""
 #
 set_cpuvars()
 {
@@ -122,7 +108,7 @@ set_cpuvars()
   EXTENDU=""
   
   # cascade top down through x86 mainstream architectures' common instruction sets
-  if `is_substring_of  "3dnow "  "$CPUINFO" `; then
+  if `is_substring_of  "3dnow"  "$CPUINFO" `; then
 
    # AMD family last  / AVX2/BMI/BMI2/AVX-SSE4A,SSSE3,SSE4.x  with 3dnow extensions or 3dnowprefetch   
    if   `is_substring_of  "avx2 "  "$CPUINFO" `; then
@@ -395,7 +381,7 @@ set_cpuvars_standalone()
       ARCHTEXT=$K5TEXT
    #elif fpu only supporting processors without 3dnow or mmx of AMD must conform i486 
    fi
-   MAXCMDSET=$K15$K14$k16$K18$K10$K9$K8$K7$K5
+   MAXCMDSET=$K15$K14$K16$K18$K10$K9$K8$K7$K5
 
   else
     #  general intel x86 architectures without 3dnow
@@ -710,6 +696,8 @@ previous_matching_cmdset()
   if [ "$1" = "" ]; then echo ""; return 254; fi
   local  EXT
   EXT="$1"
+  local K15 K14 K16 K18 K10 K9 K8 K7 K6 K5 COREAVX COREAVX2 COREX K9C2 ATOM K8P5 K7P4 K6P3 I686 I486 I586TSC 
+
     # search matching EXTENT and assign the previous
     case $EXT in
       fpu)

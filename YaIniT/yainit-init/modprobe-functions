@@ -1,27 +1,30 @@
 #
 #  MODPROBE-FUNCTIONS
 #  for Universal INIT with BusyBox
-#  (C) Dieter Miosga, 2008-2014-03-31
+#  (C) Dieter Miosga, 2008-2014-04-22
 #
 #echo   "modprobe-functions: Being read in...."
 #
 check_for_depmod()
 {
-   local DEPMOD MODULFILES
+   local DEPMOD MODULEFILES RC
    DEPMOD=""
-   MODULFILES=""
-   MODULEFILES="modules.dep modules.order modules.alias"
+   RC=""
+   MODULEFILES="modules.dep modules.alias"
    for file in $MODULEFILES; do
      if [ -e /lib/modules/$KERNVER/$file  ]; then
        echoconsole  "$INITPREF" "File '$file found for $KERNVER, continuing..."
      else
-       echoconsole  "$INITPREF" "File '$file not found for $KERNVER, creating module dependencies...."
+       echoconsole  "$INITPREF" "File '$file not found for $KERNVER "
        DEPMOD="depmod"
      fi
    done
    if [ "$DEPMOD" != "" ]; then
+     echoconsole  "$INITPREF" "creating module dependencies.... "
      /bin/busybox depmod  >/dev/null 2>&1
+     RC=$?
      /bin/busybox sync 2>/dev/null
+     echoconsole  "$INITPREF" "... done with '$RC' !"
    fi
 }
 #
@@ -847,6 +850,8 @@ find_drivers_from_uevents()
       done
     fi
     MOD=""
+    # replaced by a more generic modalias recognition version
+    # the case list is incomplete!
     case $DRV in
          sd)
            if [ "$NOCD" = "" ]; then
@@ -1096,16 +1101,18 @@ set_initial_modules()
    MODULES1=""
    if `is_substring_of "ahci" "$MODULES2LOAD"`; then
      MODULES1="ahci libahci ata_piix libata"
-     #MODULES2LOAD="$MODULES2LOAD scsi_mod sd_mod brd loop sg "
-     #if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
    fi
    # put the *hci_hcd's back to the right and universal order 
    MODULES2=""
    if `is_substring_of "hci_" "$MODULES2LOAD "` ; then
-      MODULES2="ehci_pci ehci_hcd ehci_platform ohci_pci ohci_hcd ohci_platform xhci_hcd uhci_hcd"
-      #TOREMOVE="ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform xhci_hcd uhci_hcd"
-      #remove_from_string "TOREMOVE"  "MODULES2LOAD" 
-      #MODULES2LOAD="$MODULES2LOAD ehci_hcd ehci_pci ehci_platform ohci_hcd ohci_pci ohci_platform uhci_hcd xhci_hcd  "
+      MODULES2="ehci_pci ehci_hcd ehci_platform"
+      if `is_substring_of "ohci" "$MODULES2LOAD "` ; then
+        MODULES2="$MODULES2 ohci_pci ohci_hcd ohci_platform"
+      fi
+      if `is_substring_of "uhci" "$MODULES2LOAD "` ; then
+        MODULES2="$MODULES2 uhci_hcd"
+      fi
+      MODULES2="$MODULES2 xhci_hcd"
    fi
    MODULES2LOAD="$MODULES1 $MODULES2 $MODULES2LOAD"
    if [ "$NOINPUT" = "" ]; then    
@@ -1119,7 +1126,43 @@ set_initial_modules()
      else
        MODULES2LOAD="$MODULES2LOAD atkbd psmouse usbkbd usbmouse usbhid hid_generic mousedev"
      fi
+     if [ "$NOBT" = "" ]; then    
+       if [ -e /proc/bus/input/devices ]; then
+         if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices"` && [ "$NOKBD" = "" ]; then
+             MODULES2LOAD=" btusb bcm203x bpa10x bfusb st_drv bluetooth $MODULES2LOAD"
+         elif  `is_not_string_in_file  "ouse" "/proc/bus/input/devices"` && ["$NOMOUSE" = "" ]; then
+             MODULES2LOAD=" btusb bcm203x bpa10x bfusb st_drv bluetooth $MODULES2LOAD"
+         fi  
+       fi
+     fi
    fi
+   if [ "$NOHD" = "" ]; then
+     MODULES2LOAD="$MODULES2LOAD brd loop scsi_mod sd_mod sg"
+     if [ "$DEBUG" != "" ]; then MODULES2LOAD="$MODULES2LOAD scsi_debug "; fi
+   fi
+}
+#
+set_principal_modules()
+{
+   local mod al MODULE1 MODULES2
+   MODULE1=""
+   mod=""
+   al=""
+   if [ "$DEFAULT_MODALIASES" = "" ]; then
+      DEFAULT_MODALIASES="Fix=mdio MDIO=mdio MDIO=mdio_gpio SP5100=sp5100_tco sd=scsi_mod sd=sd_mod sd=sg sd=loop sd=brd reg-dummy=mtr piix4_smbus=i2c_piix4 piix4_smbus=ahci piix4_smbus=ata_piix  piix4_smbus=i2c_smbus system=rtc_cmos ec=ec_sys serial8250=8250 serial8250=serial_core pcieport=ahci pcieport=ata_piix pcieport=wmi nouveau=fbcon "
+   fi
+   for mod in $MODULES2LOAD; do
+     for al in $DEFAULT_MODALIASES; do
+     case "$al" in
+       $mod=*)
+         MODULE1=${al#*=}
+         if `is_not_substring_of "$MODULE1 " " $MODULES2LOAD " `; then 
+           MODULES2LOAD="$MODULES2LOAD $MODULE1 "
+         fi
+       ;;
+     esac
+     done
+   done
 }
 #
 evaluate_aliases()

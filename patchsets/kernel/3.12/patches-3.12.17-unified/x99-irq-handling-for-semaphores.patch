@@ -1,0 +1,63 @@
+diff -Naur linux-3.2/kernel/semaphore.c linux-3.2-curr/kernel/semaphore.c
+--- linux-3.2/kernel/semaphore.c	2012-01-04 23:55:44.000000000 +0000
++++ linux-3.2-curr/kernel/semaphore.c	2012-03-08 16:20:22.000000000 +0000
+@@ -54,12 +54,12 @@
+ {
+ 	unsigned long flags;
+ 
+-	raw_spin_lock_irqsave(&sem->lock, flags);
++	raw_spin_lock_irq(&sem->lock);
+ 	if (likely(sem->count > 0))
+ 		sem->count--;
+ 	else
+ 		__down(sem);
+-	raw_spin_unlock_irqrestore(&sem->lock, flags);
++	raw_spin_unlock_irq(&sem->lock);
+ }
+ EXPORT_SYMBOL(down);
+ 
+@@ -77,12 +77,12 @@
+ 	unsigned long flags;
+ 	int result = 0;
+ 
+-	raw_spin_lock_irqsave(&sem->lock, flags);
++	raw_spin_lock_irq(&sem->lock);
+ 	if (likely(sem->count > 0))
+ 		sem->count--;
+ 	else
+ 		result = __down_interruptible(sem);
+-	raw_spin_unlock_irqrestore(&sem->lock, flags);
++	raw_spin_unlock_irq(&sem->lock);
+ 
+ 	return result;
+ }
+@@ -103,12 +103,12 @@
+ 	unsigned long flags;
+ 	int result = 0;
+ 
+-	raw_spin_lock_irqsave(&sem->lock, flags);
++	raw_spin_lock_irq(&sem->lock);
+ 	if (likely(sem->count > 0))
+ 		sem->count--;
+ 	else
+ 		result = __down_killable(sem);
+-	raw_spin_unlock_irqrestore(&sem->lock, flags);
++	raw_spin_unlock_irq(&sem->lock);
+ 
+ 	return result;
+ }
+@@ -157,12 +157,12 @@
+ 	unsigned long flags;
+ 	int result = 0;
+ 
+-	raw_spin_lock_irqsave(&sem->lock, flags);
++	raw_spin_lock_irq(&sem->lock);
+ 	if (likely(sem->count > 0))
+ 		sem->count--;
+ 	else
+ 		result = __down_timeout(sem, jiffies);
+-	raw_spin_unlock_irqrestore(&sem->lock, flags);
++	raw_spin_unlock_irq(&sem->lock);
+ 
+ 	return result;
+ }
