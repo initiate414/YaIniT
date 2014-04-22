@@ -566,8 +566,8 @@ mount_filesystems()
  # For this case mount debugfs later.... 
  if [ "$DEBUG" != "" -o "$DEBUGFS" != "" ]; then
   if  `is_not_string_in_file  "debugfs"  "/proc/mounts"`; then 
-   mount_debugfs
-   /bin/busybox sync 2>/dev/null
+    mount_debugfs
+    /bin/busybox sync 2>/dev/null
   fi
  fi
 }
