@@ -389,21 +389,21 @@ parse_device_string()
  debug_log "parse _device_string" "$*"
 
 	local R
-	R=$1
+	R=`echo "$1" | /bin/busybox tr [:upper:] [:lower:] 2>/dev/null`
 	LABEL=""
 	UUID=""
 	case $R in
-		LABEL=*)
-			LABEL=`echo $R | /bin/busybox cut -f2- -d= 2>/dev/null`
+		label=*)
+			LABEL=`echo "$1" | /bin/busybox cut -f2- -d= 2>/dev/null`
 		;;
-		UUID=*)
-			UUID=`echo $R | /bin/busybox cut -f2- -d=  2>/dev/null`
+		uuid=*)
+			UUID=`echo "$1" | /bin/busybox cut -f2- -d=  2>/dev/null`
 		;;
 		/dev/disk/by-label/*)
-			LABEL=`echo $R | /bin/busybox cut -f5 -d/ 2>/dev/null`
+			LABEL=`echo "$1" | /bin/busybox cut -f5 -d/ 2>/dev/null`
 		;;
 		/dev/disk/by-uuid/*)
-			UUID=`echo $R | /bin/busybox cut -f5 -d/  2>/dev/null`
+			UUID=`echo "$1" | /bin/busybox cut -f5 -d/  2>/dev/null`
 		;;
 	esac
  return 0
@@ -416,7 +416,7 @@ check_device()
 {
 
  debug_log "check_device" "$*"
-
+ set -x
  if [ "$1" = "" ]; then
    echo ""
    return 255   # device or label/uuid?
@@ -437,16 +437,6 @@ check_device()
    /bin/busybox sync
    if [ "$BLKIDRESULT" = "" ]; then echo ""; return 1; fi
    # look for a /dev/xxx, label or uuid in $1
-   HLABEL=`echo "$BLKIDRESULT"  | /bin/busybox grep  "$1"`
-   if [ "$HLABEL" != "" ]; then
-     # cut out the device string from blkid answer
-     if [ "$(echo $HLABEL   | /bin/busybox grep -o "$1")" = "$1" ]; then
-       RETVAL=`echo $HLABEL | /bin/busybox cut -f1 -d: 2>/dev/null`
-       # and echo for return
-       echo $RETVAL
-       return 0
-     fi
-   fi
    #do a more explicit examination of device's label and uuid"
    # the label or uuid has to be assigned before
    parse_device_string "$1"
@@ -454,6 +444,7 @@ check_device()
        BLKIDRESULT=`/bin/busybox blkid`
        /bin/busybox sync
       if [ "$BLKIDRESULT" = "" ]; then echo ""; return 1; fi
+       LABEL="\"$LABEL\""
        HLABEL="`echo "$BLKIDRESULT" | /bin/busybox grep  "$LABEL"`"
        RETVAL=`echo $HLABEL | /bin/busybox cut -f1 -d: 2>/dev/null`
        # search for CDROM/DVDROM media label or better volume id/volname
@@ -475,6 +466,7 @@ check_device()
        BLKIDRESULT=`/bin/busybox blkid`
        /bin/busybox sync
        if [ "$BLKIDRESULT" = "" ]; then echo ""; return 1; fi
+       UUID="\"$UUID\""
        HLABEL="`echo "$BLKIDRESULT"  | /bin/busybox grep  "$UUID"`"
        RETVAL=`echo $HLABEL | /bin/busybox cut -f1 -d:  2>/dev/null`
        if [ "$HLABEL" = "" ]; then
@@ -483,13 +475,28 @@ check_device()
    else
      RETVAL=""
    fi
-   echo  $RETVAL
-   if [ "$HLABEL" = "unappeared" ]; then
-      return 255
+   if [ "$RETVAL" != "" ]; then 
+     if [ "$HLABEL" = "unappeared" ]; then
+       HLABEL=`echo "$BLKIDRESULT"  | /bin/busybox grep  "$1"`
+       if [ "$HLABEL" != "" ]; then
+         # cut out the device string from blkid answer
+         if [ "$(echo $HLABEL   | /bin/busybox grep -o "$1")" = "$1" ]; then
+           RETVAL=`echo $HLABEL | /bin/busybox cut -f1 -d: 2>/dev/null`
+           # and echo for return
+           echo $RETVAL
+           return 0
+         fi
+       fi
+       echo ""
+       return 255
+     else
+        echo  $RETVAL
+        return 0
+     fi
    else
-      return 0
+     echo $RETVAL
    fi
-
+   set +x
 }
 
 
@@ -527,7 +534,7 @@ check_device_blkid()
    # the label or uuid has to be assigned before
    parse_device_string "$1"
    if [ "$LABEL" != "" ]; then
-       HLABEL="`$BLKID  | /bin/busybox grep "$LABEL"`"
+       HLABEL="`$BLKID  | /bin/busybox grep "\"$LABEL\""`"
        RETVAL=`echo $HLABEL | /bin/busybox cut -f1 -d: 2>/dev/null`
        # search for CDROM/DVDROM media label or better volume id/volname
        if [ "$RETVAL" = "" ]; then
@@ -546,7 +553,7 @@ check_device_blkid()
        fi
    fi
    if [ "$UUID" != "" ]; then
-       HLABEL="`$BLKID  | /bin/busybox grep "$UUID"`"
+       HLABEL="`$BLKID  | /bin/busybox grep "\"$UUID\""`"
        RETVAL=`echo $HLABEL | /bin/busybox cut -f1 -d:  2>/dev/null`
        if [ "$HLABEL" = "" ]; then
          HLABEL="unappeared"
