@@ -379,12 +379,14 @@ assign_init_variables()
 
   
   FROM=`assign_uuidlabel $FROM`
-  
-  BOOTDEV=$FROM
-
+  if [ "$BOOTDEV" != "" ]; then
+    BOOTDEV=`assign_uuidlabel $BOOTDEV`
+  else
+    BOOTDEV=$FROM
+  fi
   INITRD=`assign_uuidlabel $INITRD`
   
-  ROOTDEV=`assign_uuidlabel $ROOT`
+  #ROOTDEV=`assign_uuidlabel $ROOT`
 
   DATADEV=`assign_uuidlabel $DATA`
 
@@ -713,14 +715,79 @@ probe_for_kernelmodule_tarball()
   fi
 }
 #
+is_not_up_rootdevice()
+{
+  #set -x
+  local DEVTREE RDEV SYSBLK rootdev sysblkdev sysdev dev
+  rootdev=""
+  sysblkdev=""
+  sysdev=""
+  #DEVTREE=`/bin/busybox ls -1 /dev/sd* /dev/hd* /dev/sr* /dev/mmcblk* 2>/dev/null`
+  #SYSBLK=`/bin/busybox ls -1 /sys/block/sd* /sys/block/hd* /sys/block/sr* /sys/block/mmcblk* 2>/dev/null`
+  
+  sysblkdev=${ROOTDEV#/dev/}
+  sysblkdev=$(echo $sysblkdev | /bin/busybox tr -d [:alpha:] 2>/dev/null)
+  sysblkdev=${ROOTDEV//$sysblkdev}
+  sysblkdev=${sysblkdev#/dev/}
+  dev=""
+  for dev in `/bin/busybox ls -1d /sys/block/sd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/hd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/mmcblk* 2>/dev/null` ; do
+    dev=${dev#/sys/block/}
+    if [ "$dev" = "$sysblkdev" ]; then
+      sysdev=found
+      break
+    fi
+  done
+  dev=""
+  for dev in `/bin/busybox ls -1 /dev/sd* 2>/dev/null` `/bin/busybox ls -1 /dev/hd* 2>/dev/null` `/bin/busybox ls -1 /dev/sr* 2>/dev/null` `/bin/busybox ls -1 /dev/mmcblk*  2>/dev/null` ; do
+    if [ "$ROOTDEV" = "$dev" ]; then
+      rootdev=found
+      break
+    fi
+  done
+  
+  if [ "$sysdev" != "" -a "$rootdev" != ""  ]; then
+    # can I read the PARTUUID of the required rootdevice?
+    PART=`/bin/busybox dd if=/dev/$sysblkdev  bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
+    RC=$?
+    if [ "$PART" != "" ]; then 
+      if [ $RC -eq 0 ]; then
+         PUUID=""
+         # reorder the words containing the partuuid 
+         BYTE1=`echo $PART | /bin/busybox cut -f3 -d" " 2>/dev/null`
+         BYTE2=`echo $PART | /bin/busybox cut -f2 -d" " 2>/dev/null`
+         PUUID="$BYTE1$BYTE2"
+         export DISKUUID="$PUUID"
+         export PARTUUID="$DISKUUID-0${ROOTDEV#/dev/$sysblkdev}"
+         return 1
+      else
+        return 0
+      fi
+    else
+      return 0
+    fi
+  else 
+    return 0
+  fi
+  
+}
+# under construction
+wait_for_rootdevice()
+{
+  local TIMEOUT 
+  /bin/busybox sleep 2 
+  return 0
+}
+#
 parse_rootdevice_string()
 {
+  # this function only parses, no contact to devices!!!!!
   local ROOTVAR
-  UUID=""
-  LABEL=""
-  PARTUUID=""
+  export UUID=""
+  export LABEL=""
+  export PARTUUID=""
+  export DISKUUID=""
   ROOTVAR="$(echo $ROOT | /bin/busybox tr [:upper:] [:lower:] 2>/dev/null )"
-  if [ "$ROOTVAR" !="" ]; then
+  if [ "$ROOTVAR" != "" ]; then
     case $ROOTVAR in
       ask|i|interactive)
         ROOTDEV="ask"
@@ -729,21 +796,24 @@ parse_rootdevice_string()
       ;;
       # the Slackware, Puppylinux, .... cases
       /dev/hd*|/dev/sd*|/dev/sr*|/dev/mmcblk*|/dev/cdrom*|/dev/dvdrom*|/dev/cdram*|/dev/dvdram*)
-        ROOTDEV=${ROOTVAR#/dev/}
+        ROOTDEV=${ROOTVAR}
+        PARTNUM=$(echo $ROOTDEV | /bin/busybox tr -d [:alpha:] 2>/dev/null)
       ;;
       hd*|sd*|sr*|mmcblk*|cdrom*|dvdrom*|cdram*|dvdram*)
-        ROOTDEV="$ROOTVAR"
+        ROOTDEV="/dev/$ROOTVAR"
+        PARTNUM=$(echo $ROOTDEV | /bin/busybox tr -d [:alpha:] 2>/dev/null)
       ;;
       # the OpenSuSE,... cases
       /dev/disk/by-*/*)
         # assign UUID/LABEL content
-        ROOTVAR=${ROOT#/dev/disk/by*/}
+        ROOTDEV=$ROOT
+        ROOTVAR=${ROOT#/*/*/*/}
         # ROOT=LABEL or UUID  
-        ROOT=${ROOT#/dev/disk/by-}
+        ROOT=${ROOT#/*/*/*-}
         # remove / and UUID/LABEL content from $ROOT
         ROOT=${ROOT%/*}  # | /bin/busybox cut -f1 -d "/"    2>/dev/null)"
-        eval "$ROOT=\"$ROOTVAR\""
-        export ROOT
+        eval "ROOT=$ROOT=\"$ROOTVAR\""
+        export ROOTDEV ROOT
         parse_rootdevice_string
       ;;
       #  the "id" and "name" cases do not work here for now
@@ -757,50 +827,53 @@ parse_rootdevice_string()
       #;;
       # the Redhat, Ubuntu,..., and generic cases
       label=*=uuid=*)
-        LABEL=${ROOT#label=}
+        LABEL=${ROOT#*=}
         #LABEL=${LABEL//=*} # | /bin/busybox cut -f2  -d "="    2>/dev/null)"
-        UUID=${LABEL#*=uuid=} #"$(echo $ROOT | /bin/busybox cut -f3  -d "="    2>/dev/null)"
+        UUID=${LABEL#*=*=} #"$(echo $ROOT | /bin/busybox cut -f3  -d "="    2>/dev/null)"
         LABEL=${LABEL//=*}    # | /bin/busybox cut -f2  -d "="    2>/dev/null)"
+        ROOTDEV="UUID=$UUID"
       ;;
       label=*,uuid=*)
         #LABEL="$(echo $ROOT | /bin/busybox cut -f2  -d "="    2>/dev/null| /bin/busybox cut -f1  -d ","    2>/dev/null)"
         #UUID="$(echo $ROOT  | /bin/busybox cut -f2-  -d ","    2>/dev/null | /bin/busybox cut -f1  -d "="    2>/dev/null)"
-        UUID=${ROOT#label=*,uuid=}
+        UUID=${ROOT#*=*,*=}
         LABEL=${ROOT//,*}
-        LABEL=${LABEL#label=}
+        LABEL=${LABEL#*=}
+        ROOTDEV="UUID=$UUID"
       ;;
       uuid=*=label=*)
-        UUID=${ROOT#uuid=}
-        LABEL=${UUID#*=label=}
+        UUID=${ROOT#*=}
+        LABEL=${UUID#*=*=}
         UUID=${UUID//=*}
-        #UUID="$(echo $ROOT | /bin/busybox cut -f2  -d "="    2>/dev/null)"
-        #LABEL="$(echo $ROOT | /bin/busybox cut -f3  -d "="    2>/dev/null)"
+        ROOTDEV="UUID=$UUID"
       ;;
       uuid=*,label=*)
-        UUID="$(echo $ROOT | /bin/busybox cut -f2  -d "="    2>/dev/null| /bin/busybox cut -f1  -d ","    2>/dev/null)"
-        LABEL="$(echo $ROOT  | /bin/busybox cut -f2-  -d ","    2>/dev/null | /bin/busybox cut -f1  -d "="    2>/dev/null)"        
         LABEL=${ROOT#uuid=*,label=}
         UUID=${ROOT//,*}
         UUID=${UUID#uuid=}
+        ROOTDEV="UUID=$UUID"
       ;;
       label=*)
-         LABEL=${ROOT#label=} #LABEL="$(echo $ROOT | /bin/busybox cut -f2-  -d "="    2>/dev/null)"
+         LABEL=${ROOT#*=} 
+         ROOTDEV="LABEL=$LABEL"
       ;;
       uuid=*)
-        UUID=${ROOT#uuid=}
-        #PARTUUID=$UUID
-        #UUID="$(echo $ROOT | /bin/busybox cut -f2  -d "="    2>/dev/null| /bin/busybox cut -f1  -d ","    2>/dev/null)"
+        UUID=${ROOT#*=}
+         ROOTDEV="UUID=$UUID"
       ;;
       partuuid=*)
-        PARTUUID=${ROOT#partuuid=}
+        PARTUUID=${ROOT#*=}
         # cut out the characters after last "-" in string  
         UUID=${PARTUUID//*-}
-        # allow maximal 16 (=22 decimal) partititons for PARTUUID, else switch to UUID interpretation
+        DISKUUID=${PARTUUID//-*}
+        # allow maximal 0x16 (=22 decimal) partititons for PARTUUID, else switch to UUID interpretation
         if [ $(( 0x$UUID )) -ge 1 -a $(( 0x$UUID )) -le 22 ]; then  
-          UUID="" 
+          PARTNUM=$(( $UUID )) 
         else
           UUID=$PARTUUID
+          PARTNUM=""
         fi
+        ROOTDEV="PARTUUID=$PARTUUID"
       ;;
       # is there a shell variable specified before rootdevice's label or uuid declaration?
       *=label=*|*=uuid=*)
@@ -810,6 +883,7 @@ parse_rootdevice_string()
         ROOTVAR="$(echo ${ROOT//=*} | /bin/busybox tr [:lower:]  [:upper:]  2>/dev/null | /bin/busybox tr ".-" "_"  2>/dev/null)"
         ROOT=${ROOT#*=}
         eval "$ROOTVAR=\"$ROOT\"" 
+        export $ROOTVAR
         if [ "$ROOT" != "" ]; then
           export ROOT
           parse_rootdevice_string
@@ -817,7 +891,7 @@ parse_rootdevice_string()
       ;;
     esac
     #[ "$ROOTDEV" != "" ] && boot_device_check
-    export  ROOTDEV LABEL UUID PARTUUID
+    export  ROOTDEV LABEL UUID PARTUUID DISKUUID PARTNUM
   #else
   #  ROOT="ask"
   #  check_dialog_equipment
@@ -829,86 +903,189 @@ parse_rootdevice_string()
 # under construction
 recognize_rootdevice()
 {
-  local var BLKID DEVBOOT DEVROOT DEVROOT2
-  
-  parse_rootdevice_string
+  local var BLKID DEVBOOT DEVROOT DEVROOT1 DEVROOT2
+  #set -x
+  #parse_rootdevice_string
   BLKID=""
   DEVBOOT=""
   DEVROOT=""
+  DEVROOT1=""
   DEVROOT2=""
+
   if [ "$ROOTDEV" != "" ]; then
-    DEVROOT=""
-    if [ "$PARTUUID" != "" ]; then
-      BLKID=`get_partuuids`
-      UID=${PARTUUID//-*}
-      DEVROOT=`echo $BLKID | /bin/busybox grep "$UID" 2>/dev/null | /bin/busybox cut -f1 -d"|" 2>/dev/null`
-      export ROOTDEV="$DEVROOT${PARTUUID#*-}"
-      BLKID=`/bin/busybox blkid 2>/dev/null`
-      DEVROOT=`echo $BLKID | /bin/busybox grep "$ROOTDEV" 2>/dev/null`
+    # ROOTDEV must have the 
+    DEVROOT=`/bin/busybox findfs "$ROOTDEV" 2>/dev/null`
+    if [ "$DEVROOT" != "" ]; then
+      export ROOTDEV="$DEVROOT"
+    else
+      if [ "$PARTUUID" != "" ]; then
+        #BLKID=`get_partuuids`
+        #DEVROOT=`echo "$BLKID" | /bin/busybox grep "$DISKUUID" 2>/dev/null | /bin/busybox cut -f1 -d"|" 2>/dev/null`
+        #export ROOTDEV="/dev/$DEVROOT$(( $PARTNUM ))"
+        DEVROOT=`get_blockdev_from_partuuid  "$PARTUUID"`
+        if [ "$DEVROOT" != "" ]; then
+          export ROOTDEV="$DEVROOT"
+        fi        
+      fi
+    fi
+    if [ "$DEVROOT" = "" ]; then
+      if [ "$LABEL" != "" ]; then
+        DEVROOT1=`/bin/busybox findfs "LABEL=$LABEL" 2>/dev/null`
+      fi
+      if [ "$UUID" != "" ]; then
+        DEVROOT2=`/bin/busybox findfs "LABEL=$LABEL" 2>/dev/null`
+      fi
+      if [ "$DEVROOT1" != "" -o "$DEVROOT2" != "" ]; then
+      if [ "$DEVROOT1" != "$DEVROOT2" ]; then
+        echoconsole "$INITPREF"  "Warning: Specified UUID and LABEL do not match the same device! "
+        [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1"
+        [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2"
+        echoconsole "$INITPREF"  "Warning: Preferring to use the UUID before LABEL !"        
+      else
+        export ROOTDEV="$DEVROOT1"
+        DEVROOT="$DEVROOT1"
+      fi
+      fi
+    fi
+    if [ "$DEVROOT" = "" ]; then
+      [ "$BLKID" != "" ] || BLKID=`/bin/busybox blkid 2>/dev/null`
+      DEVROOT=`echo "$BLKID" | /bin/busybox grep "UUID=\"$UUID\"" 2>/dev/null `
+      if [ "$DEVROOT" != "" ]; then        
+        for var in $DEVROOT; do
+          case $var in
+            *=*)
+              eval "$var"
+            ;;
+            /*/*:)
+              DEVBOOT=${var//:*}
+            ;;
+          esac
+        done
+        if [ "$TYPE" != "" ]; then
+           ROOTDEVTYPE="$TYPE"
+        fi
+        export ROOTDEV="$DEVROOT" ROOTDEVTYPE
+      else 
+        LABEL=""
+        UUID=""
+        ROOTDEVTYPE=""
+        export ROOTDEVTYPE UUID LABEL
+      fi
+    fi
+    if [ "$DEVROOT" = "" ]; then
+      [ "$BLKID" != "" ] || BLKID=`/bin/busybox blkid 2>/dev/null`
+      DEVROOT=`echo "$BLKID" | /bin/busybox grep "LABEL=\"$LABEL\"" 2>/dev/null `
+      if [ "$DEVROOT" != "" ]; then        
+        for var in $DEVROOT; do
+          case $var in
+            *=*)
+              eval "$var"
+            ;;
+            /*/*:)
+              DEVBOOT=${var//:*}
+            ;;
+          esac
+        done
+        if [ "$TYPE" != "" ]; then
+           ROOTDEVTYPE="$TYPE"
+        fi
+        export ROOTDEV="$DEVROOT" ROOTDEVTYPE
+      else 
+        LABEL=""
+        UUID=""
+        ROOTDEVTYPE=""
+        export ROOTDEVTYPE UUID LABEL 
+      fi
+      
+    fi
+    return 0
+  else # rootdev=""
+      
+     return 5
+  fi  # rootdev
+}
+
+recognize_rootdevice_old()
+{
+    if [ "$ROOTDEV" != "" ]; then
+      [ "$LABEL" != "" ] && DEVROOT1=`/bin/busybox findfs "LABEL=$LABEL" 2>/dev/null`
+      [ "$UUID" != "" ]  && DEVROOT2=`/bin/busybox findfs "UUID=$UUID" 2>/dev/null`
+    
       TYPE=""
-      for var in $DEVROOT; do
+      if [ "$DEVROOT1" != "$DEVROOT2" ]; then
+        [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2"
+        [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1"
+      else
+        DEVROOT="$DEVROOT1"
+        export ROOTDEV="$DEVROOT"        
+      fi
+
+    if [ "$LABEL" != "" -o "$UUID" != "" ]; then
+      DEVROOT2=""
+      DEVROOT1=""
+      if [ "$LABEL" != "" ]; then
+        DEVROOT1=`/bin/busybox findfs "LABEL=$LABEL" 2>/dev/null`
+      fi
+      if [ "$UUID" != "" ]; then
+        DEVROOT2=`/bin/busybox findfs "UUID=$UUID" 2>/dev/null`
+      fi
+      TYPE=""
+      if [ "$DEVROOT" != "$DEVROOT2" ]; then
+        [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2"
+        [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1"
+      else
+        DEVROOT="$DEVROOT1"
+        export ROOTDEV="$DEVROOT"        
+      fi
+    fi # label, uuid
+    if [ "$NOAUTOFS" != "" ]; then 
+      BLKID=`/bin/busybox blkid 2>/dev/null`
+      DEVBOOT=`echo "$BLKID" | /bin/busybox grep "$ROOTDEV" 2>/dev/null`
+      TYPE=""
+      for var in $DEVBOOT; do
         case $var in
           *=*)
             eval "$var"
-            if [ "$TYPE" != "" ]; then
-               export ROOTDEVTYPE="$TYPE"
-            fi 
+          ;;
+          /*/*:)
+            DEVROOT=${var//:*}
           ;;
         esac
       done
-    fi
-    if [ "$DEVROOT" = "" ]; then
-      DEVROOT2=""
-      if [ "$LABEL" != "" -o "$UUID" != "" ]; then
-        [ "$BLKID" != "" ] || BLKID=`/bin/busybox blkid 2>/dev/null`
-        if [ "$LABEL" != "" ]; then
-          DEVROOT=`echo $BLKID | /bin/busybox grep "LABEL=\"$LABEL\"" 2>/dev/null`
-          TYPE=""
-          for var in $DEVROOT; do
-            case $var in
-              *=*)
-                eval "$var"
-                if [ "$TYPE" != "" ]; then
-                   export ROOTDEVTYPE="$TYPE"
-                fi 
-              ;;
-              /*/*:)
-                DEVBOOT=${var//:*}
-              ;;
-            esac
-          done
-        fi #LABEL
-        if [ "$UUID" != "" ]; then
-          DEVROOT2=`echo $BLKID | /bin/busybox grep "UUID=\"$UUID\"" 2>/dev/null `
-          TYPE=""
-          for var in $DEVROOT2; do
-            case $var in
-              *=*)
-                eval "$var"
-                if [ "$TYPE" != "" ]; then
-                   export ROOTDEVTYPE="$TYPE"
-                fi 
-              ;;
-              /*/*:)
-                if [ "$DEVBOOOT" != "" ]; then
-                  if [  "$DEVBOOT" != "${var//:*}" ]; then
-                    return 4;
-                  fi
-                else
-                  DEVBOOT=${var//:*}
-                fi
-              ;;
-            esac
-          done
-        fi #UUID
-      fi # label & uuid    
-    fi #devroot
-    if [ "$DEVBOOT" != "" ]; then
-      export ROOTDEV="$DEVBOOT"
-    else
-      export ROOTDEV
-    fi
-    return 0
+      if [ "$TYPE" != "" ]; then
+         export ROOTDEVTYPE="$TYPE"
+      fi 
+      [ "$BLKID" != "" ] || BLKID=`/bin/busybox blkid 2>/dev/null`
+      DEVROOT=`echo "$BLKID" | /bin/busybox grep "UUID=\"$UUID\"" 2>/dev/null `
+      if [ "$DEVROOT" != "" ]; then        
+        for var in $DEVROOT; do
+          case $var in
+            *=*)
+              eval "$var"
+            ;;
+            /*/*:)
+              DEVBOOT=${var//:*}
+            ;;
+          esac
+        done
+        if [ "$TYPE" != "" ]; then
+           export ROOTDEVTYPE="$TYPE"
+        fi
+      else 
+        ROOTDEV="" 
+        LABEL=""
+        UUID=""
+        ROOTDEVTYPE=""
+        export ROOTDEVTYPE UUID LABEL
+      fi
+    
+      if [ "$DEVBOOT" != "" ]; then
+        export ROOTDEV="$DEVBOOT"
+      else
+        export ROOTDEV
+      fi
+      return 0
+    fi # noautofs
   else  # rootdev
     return 255
   fi  #rootdev

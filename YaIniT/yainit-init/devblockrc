@@ -26,9 +26,27 @@ if [ "$ROOTDEV" = "" ]; then
    boot_device_dialog
 fi
 
-boot_device_check
-/bin/busybox sync 
 
+source general-functions
+source initsys-functions
+parse_rootdevice_string
+recognize_rootdevice
+
+i=0
+while `is_not_up_rootdevice`; do 
+  /bin/busybox usleep 250000
+  /bin/busybox mdev -s 2>/dev/null 
+  /bin/busybox sync 
+  recognize_rootdevice
+  set_system_variables
+  i=$(( $i + 1 ))
+  if [ $i -ge $MAXCYCLES ]; then break; fi
+done
+#
+if ! [ -e $ROOTDEV ]; then
+  boot_device_check
+  /bin/busybox sync 
+fi
 debug_shell
 
 

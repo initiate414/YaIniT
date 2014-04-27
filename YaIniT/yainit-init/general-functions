@@ -475,3 +475,38 @@ get_partuuids()
 
 }
 #
+get_blockdev_from_partuuid()
+{
+  if [ "$1" != "" ]; then
+  local DISK BLOCKDEVICES DISKID DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
+  DISKPARTUUID="$1"
+  DISKPNUM=$(( ${DISKPARTUUID#*-} ))
+  DISKPARTUUID=${DISKPARTUUID//-*}
+  BLOCKDEVICES=""
+  for DISK in `/bin/busybox ls -1d /sys/block/sd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/hd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/mmcblk* 2>/dev/null` ; do
+     BLOCKDEVICES="$BLOCKDEVICES `/bin/busybox basename "$DISK" 2>/dev/null` "
+  done
+  DISKID=""
+  for DISK in $BLOCKDEVICES; do
+     # extract the partuuid information from partition table
+     DISKID=`/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
+     if [ $? -eq 0 ]; then
+       PUUID=""
+       # reorder the words containing the partuuid 
+       BYTE1=`echo $DISKID | /bin/busybox cut -f3 -d" " 2>/dev/null`
+       BYTE2=`echo $DISKID | /bin/busybox cut -f2 -d" " 2>/dev/null`
+       PUUID="$BYTE1$BYTE2"
+       if [ "$PUUID" = "$DISKPARTUUID" ]; then
+         echo "/dev/$DISK$DISKPNUM"
+         return 0
+       fi
+     fi
+     
+  done
+  else
+  echo ""
+  return 0
+  fi
+}
+
+#

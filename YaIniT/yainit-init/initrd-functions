@@ -263,9 +263,10 @@ setup_configurations()
      SYSERRPROMPT=yes
      error2ash   "$INITPREF"
   fi
-  #
+  
   assign_init_variables
-
+  parse_rootdevice_string
+   
   [ "$INITDBG" != "" ] && export >> "$MSGFILE"
   if [ "$VERBOSE" != "" ]; then
     /bin/busybox cat "$MSGFILE"  2>/dev/null
