@@ -1,12 +1,12 @@
 #
 #  I386-FUNCTIONS architecture specific functions and variables for YaIniT Universal INIT Tool with busybox
-#  (C) Dieter Miosga , 2008-2014-04-22
+#  (C) Dieter Miosga , 2008-2014-05-01
 #
 #set -x
 
-ALLEXTENTS="x86 x86mmx i686 k6p3 k7p4 k8p5 k9c2 atom core2 coreix coreavx coreavx2 k15 k16 k14 k10 k9 k8 k7 k6 k5"
+ALLEXTENTS="x86 x86mmx i686 k6p3 k7p4 k8p5 k9c2 atom core2 coreix coreavx coreavx2 k15 k16 k18 k14 k10 k9 k8 k7 k6 k5"
 ALLSUBEXTENTS="x86 mmx sse sse2 sse3 ssse3 sse4a sse4x avx avx2"
-ALLCPUMODS="fpu mmx 3dnow 3dnowext pat sse sse2 pni ssse3 sse4 sse4a sse4_1 sse4_2 avx avx2 bmi bmi2"
+ALLCPUMODS="fpu mmx 3dnow 3dnowext pae pat sse sse2 pni ssse3 sse4  sse4_1 sse4_2 sse4a avx avx2 bmi bmi2"
 ALLRTEXTENTS="tar.bz2 tar.lzma tar.xz tar.gz"  # "tar.Z tar.z tgz tbz tlz txz tz"
 #
 set_cpuvars()
@@ -16,7 +16,7 @@ set_cpuvars()
   K15=""
   K14=""
   K16=""
-  K17=""
+  K18=""
   K10=""
   COREIX=""
   COREAVX=""
@@ -45,20 +45,20 @@ set_cpuvars()
    (Barton Athlon/Sempron) with SSE without 3DNow!"
   K7P4TEXT="i686 with generic SSE2 support for Pentium4 /AMD K7/K8
    or Pentium-M / Celeron compatibles with SSE2 without 3DNow!"
-  K8P5TEXT="Prescott or higher with generic SSE3/PNI support 
+  K8P5TEXT="Intel Prescott or higher with generic SSE3/PNI support 
   AMD K8 (Opteron/Athlon64/FX/X2 / Pentium D/Celeron D) with SSE3 without 3DNow!"
-  ATOMTEXT="Penryn core with SSSE3 for Intel Atom/Core2 compatibles with EM64T "
+  ATOMTEXT="Intel Penryn core with SSSE3 for Intel Atom/Core2 compatibles with EM64T "
   K9C2TEXT="Nocona/EM64T or higher with generic support for Intel Core2 /
   AMD K9/K10 Family with x86_64 and full SSE3 without SSE4x without 3DNow!"
-  COREXTEXT="Generic Core2 / Core i3/i5/i7,(Nehalem)
+  COREXTEXT="Intel Generic Core2 / Core i3/i5/i7,(Nehalem, Intel Core)
   with x86_64,SSE3/PNI,SSE4.1 and SSE4.2, without SSSE3"
-  COREAVXTEXT="Generic Core-x-AVX
+  COREAVXTEXT="Intel Generic Core-AVX (Sandybridge, Ivy Bridge)
   with x86_64,SSE3/PNI, SSSE3, SSE4.1, SSE4.2 and AVX, PCLMUL,AES"
-  COREAVX2TEXT="Generic Core-x-AVX2
-  with x86_64,SSE3/PNI, SSSE3, SSE4.1, SSE4.2, AVX and AVX2"
+  COREAVX2TEXT="Intel Generic Core-AVX2 (Haswell, Broadwell)
+  with x86_64,SSE3/PNI, SSSE3, SSE4.1, SSE4.2, AVX, and AVX2"
   K18TEXT="AMD Family 18 core (Excavator) with support for
   3DNOW,3DNOWEXT,MMX,SSE3,SSSE3,SSE4a,SSE4.2,AVX,AVX2,BMI2 for AMD K18, x86_64"
-  K16TEXT="AMD Family 16 core (Bobcat II) with support for
+  K16TEXT="AMD Family 16 core (Bobcat II Jaguar) with support for
   3DNOW,3DNOWEXT,MMX,SSE,SSE2,SSE3,SSSE3,SSE4a,SSE4.1,SSE4.2,BMI for AMD K16, x86_64"
   K15TEXT="AMD Family 15 core (Zambezi,Bulldozer, Piledriver FX-series) with support for
   3DNOW,3DNOWEXT,MMX,SSE,SSE2,SSE3,SSSE3,SSE4a,SSE4.1,SSE4.2,AVX for AMD K15, x86_64"
@@ -111,7 +111,7 @@ set_cpuvars()
   if `is_substring_of  "3dnow"  "$CPUINFO" `; then
 
    # AMD family last  / AVX2/BMI/BMI2/AVX-SSE4A,SSSE3,SSE4.x  with 3dnow extensions or 3dnowprefetch   
-   if   `is_substring_of  "avx2 "  "$CPUINFO" `; then
+   if   `is_substring_of  "avx2 "  "$CPUINFO " `; then
       K18=avx2
       EXTENDU="k18"
       ARCHTEXT="$K18TEXT"
@@ -167,7 +167,7 @@ set_cpuvars()
       if `is_substring_of  "avx2 "  "$CPUINFO" `; then
         COREAVX=avx2
         EXTENDU="coreavx2"
-        ARCHTEXT=$COREAVXTEXT
+        ARCHTEXT=$COREAVX2TEXT
       #  Intel Core2 / Core i3/i5/i7 Nehalem superset with ssse3 and sse4.x              
       elif  `is_substring_of  "avx "  "$CPUINFO" ` ; then
         COREAVX=avx
@@ -239,7 +239,7 @@ set_cpuvars_standalone()
   K15=""
   K14=""
   K16=""
-  K17=""
+  K18=""
   K10=""
   COREIX=""
   COREAVX=""
@@ -257,7 +257,7 @@ set_cpuvars_standalone()
   K7=""
   K6=""
   K5=""
-  local K15TEXT K14TEXT k16TEXT K17TEXT K10TEXT COREAVXTEXT COREXTEXT K9C2TEXT ATOMTEXT K8P5TEXT K7P4TEXT K6P3TEXT I586TSCTEXT I686TEXT I486TEXT K9TEXT K8TEXT K7TEXT K6TEXT K5TEXT
+  local K15TEXT K14TEXT k16TEXT K18TEXT K10TEXT COREAVXTEXT COREXTEXT K9C2TEXT ATOMTEXT K8P5TEXT K7P4TEXT K6P3TEXT I586TSCTEXT I686TEXT I486TEXT K9TEXT K8TEXT K7TEXT K6TEXT K5TEXT
   I486TEXT="generic x86 from i486 on with FPU-Floating Point Unit /
    no MMX, no 3DNow!"
   I586TSCTEXT="generic i586 with TSC and MMX support for all Pentium-MMX compatibles /

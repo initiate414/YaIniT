@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for YaIniT Yet an almost universal INIT Tool with busybox
-#  (C) Dieter Miosga , 2008-2014-04-22
+#  (C) Dieter Miosga , 2008-2014-05-01
 #
 #echo   "[ initrd-functions ]: Being read in...."
 # read in necessary functions
@@ -189,7 +189,7 @@ branch_2blockdev_new()
    export OLDINITPARAMETERS
    exec /initrc "$BRANCHPARM" "$ARCH" "$BRANCHTO"
   else
-   echoconsole  "$1" " no branch-direct-functions script found for local boot.."
+   echoconsole  "$1" " no branch-$BRANCHTO-functions script found for local boot.."
   fi
   error2ash "$1"
   exit 1
@@ -245,7 +245,9 @@ setup_configurations()
 
   set_kernver          "$INITPREF"
   assign_kernver_vars  "$INITPREF"
-
+  echofile "$INITPREF" "Booting with kernel $TOPKERNVER.$MAJORKERNVER.$MINORKERNVER"
+  echofile "$INITPREF" "with custom specification '$EXTRAKERNVER'"
+  echofile "$INITPREF" "and optimization index '$SUFFIXKERNVER'"
   # verify parameter root=.... is given from kernel command line and read it
   # do this now in a very tricky memory saving way
   # thanks to the insights prepared by Barry Kauler with his Puppylinux Distribution.

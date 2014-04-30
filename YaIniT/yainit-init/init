@@ -3,7 +3,7 @@
 #  Universal INIT with busybox > 1.14.3
 #  My optimization in the parameters interpretation time, execution time, 
 #     portability and (re)usability 
-#  (C) Dieter Miosga , 2008-2014-03-31
+#  (C) Dieter Miosga , 2008-2014-05-01
 #     ###  ! / bin / ash
 #
 #   PHASE 0

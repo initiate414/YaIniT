@@ -1,6 +1,7 @@
 #  # written for # # ---- ! ---- / bin / busybox ash
+# (C) Dieter Miosga , 2009 through 2014-05-01
 if [ "$QUIET" = "" ]; then
- echo "$INITPREF branch-direct-functions being read in....."
+ echo "$INITPREF branch-block-functions being read in....."
 fi
 # TODO: !!!!
 # (1)  Allow to merge hardcoded modules (burned on DVD-/CD-ROM) in directories
@@ -4504,5 +4505,5 @@ fstab_update()
 
 #end !
 if [ "$QUIET" = "" ]; then
-  echo "$INITPREF : all branch-direct-functions read in !"
+  echo "$INITPREF : all branch-block-functions read in !"
 fi

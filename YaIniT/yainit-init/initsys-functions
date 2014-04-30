@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for Universal INIT with busybox
-#  (C) Dieter Miosga , 2008-2014-03-31 
+#  (C) Dieter Miosga , 2008-2014-05-01, dieter.miosga@gmx.de 
 #
 #set -x
 #DELAY=delay
@@ -564,7 +564,7 @@ mount_filesystems()
 
  #
  # The debugfs feature is normally not needed in initial boot
- # but some drivers need a mounted debugfs to load
+ # but some drivers with debugfs support compiled in need a mounted debugfs to load
  # For this case mount debugfs later.... 
  if [ "$DEBUG" != "" -o "$DEBUGFS" != "" ]; then
   if  `is_not_string_in_file  "debugfs"  "/proc/mounts"`; then 
@@ -746,7 +746,7 @@ is_not_up_rootdevice()
   done
   
   if [ "$sysdev" != "" -a "$rootdev" != ""  ]; then
-    # can I read the PARTUUID of the required rootdevice?
+    # can I read the PARTUUID from the required rootdevice?
     PART=`/bin/busybox dd if=/dev/$sysblkdev  bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
     RC=$?
     if [ "$PART" != "" ]; then 
@@ -900,7 +900,7 @@ parse_rootdevice_string()
   
 }
 #
-# under construction
+# version 0.00001 RC
 recognize_rootdevice()
 {
   local var BLKID DEVBOOT DEVROOT DEVROOT1 DEVROOT2
@@ -913,7 +913,7 @@ recognize_rootdevice()
   DEVROOT2=""
 
   if [ "$ROOTDEV" != "" ]; then
-    # ROOTDEV must have the 
+    # ROOTDEV must have the LABEL= UUID= PARTUUID= specification  
     DEVROOT=`/bin/busybox findfs "$ROOTDEV" 2>/dev/null`
     if [ "$DEVROOT" != "" ]; then
       export ROOTDEV="$DEVROOT"
@@ -933,7 +933,7 @@ recognize_rootdevice()
         DEVROOT1=`/bin/busybox findfs "LABEL=$LABEL" 2>/dev/null`
       fi
       if [ "$UUID" != "" ]; then
-        DEVROOT2=`/bin/busybox findfs "LABEL=$LABEL" 2>/dev/null`
+        DEVROOT2=`/bin/busybox findfs "UUID=$UUID" 2>/dev/null`
       fi
       if [ "$DEVROOT1" != "" -o "$DEVROOT2" != "" ]; then
       if [ "$DEVROOT1" != "$DEVROOT2" ]; then
@@ -955,6 +955,7 @@ recognize_rootdevice()
           case $var in
             *=*)
               eval "$var"
+              export $var
             ;;
             /*/*:)
               DEVBOOT=${var//:*}
@@ -964,43 +965,30 @@ recognize_rootdevice()
         if [ "$TYPE" != "" ]; then
            ROOTDEVTYPE="$TYPE"
         fi
-        export ROOTDEV="$DEVROOT" ROOTDEVTYPE
       else 
-        LABEL=""
-        UUID=""
-        ROOTDEVTYPE=""
-        export ROOTDEVTYPE UUID LABEL
-      fi
-    fi
-    if [ "$DEVROOT" = "" ]; then
-      [ "$BLKID" != "" ] || BLKID=`/bin/busybox blkid 2>/dev/null`
-      DEVROOT=`echo "$BLKID" | /bin/busybox grep "LABEL=\"$LABEL\"" 2>/dev/null `
-      if [ "$DEVROOT" != "" ]; then        
-        for var in $DEVROOT; do
-          case $var in
-            *=*)
-              eval "$var"
-            ;;
-            /*/*:)
-              DEVBOOT=${var//:*}
-            ;;
-          esac
-        done
-        if [ "$TYPE" != "" ]; then
-           ROOTDEVTYPE="$TYPE"
+        DEVROOT=`echo "$BLKID" | /bin/busybox grep "LABEL=\"$LABEL\"" 2>/dev/null `
+        if [ "$DEVROOT" != "" ]; then        
+          for var in $DEVROOT; do
+            case $var in
+              *=*)
+                eval "$var"
+              ;;
+              /*/*:)
+                DEVBOOT=${var//:*}
+              ;;
+            esac
+          done
+          if [ "$TYPE" != "" ]; then
+             ROOTDEVTYPE="$TYPE"
+          fi
+          
         fi
-        export ROOTDEV="$DEVROOT" ROOTDEVTYPE
-      else 
-        LABEL=""
-        UUID=""
-        ROOTDEVTYPE=""
-        export ROOTDEVTYPE UUID LABEL 
       fi
-      
+      export ROOTDEV="$DEVBOOT"
+      export ROOTDEVTYPE UUID LABEL 
     fi
     return 0
   else # rootdev=""
-      
      return 5
   fi  # rootdev
 }
