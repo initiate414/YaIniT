@@ -10,6 +10,9 @@ by Dieter Miosga
 Changes:
 --------
 
+2014-04-30 :
+some important changes and corrections
+
 2014-04-22 :
 1) restructured online project with two more branches
 for being able downloading independently 
