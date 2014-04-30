@@ -306,7 +306,6 @@ setup_architecture_specifics()
   echoconsole "$INITPREF" "  --> where to boot to: $ROOTDEV"
 
   inline_external_file "archvarfile"
-
   # arch-functions are not mandatory, we might continue if none
   if [ -e $ARCH-functions ]; then
 

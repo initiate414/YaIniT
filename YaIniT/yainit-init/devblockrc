@@ -2,7 +2,8 @@
 # /blockdevrc:  init script to load kernel modules from an initramfs and boot
 #            installed system
 #            This requires that your kernel supports initramfs!!!
-#   This version is a complete workover from (c) Dieter Miosga 2009-06-01 through 2014-05-01
+#   This version is a complete workover from 2009 
+#   (c) Dieter Miosga 2009-06-01 through 2014-05-01
 if [ "$ROOTDIR" = "" ]; then 
   ROOTDIR=/mnt
 fi
@@ -19,33 +20,54 @@ check_kernel_config
 header "starting $THIS init script "
 header "for support contact the author mailto:dieter.miosga<at>gmx.de "
 
-#[ "$KERNVER" = "" ] && kernvercheck
 
+
+#[ "$KERNVER" = "" ] && kernvercheck
+[ "$DEBUG" != "" ] && set -x
+if [ "$ROOT" = "" -o "$ROOTDEV" = "" ]; then
+  read_cmdline
+  parse_rootdevice_string
+fi
+
+ROOTDEVOLD="$ROOTDEV"
+recognize_rootdevice
+
+if [ "$ROOTDEV" = "$ROOTDEVOLD" ]; then
+  parse_rootdevice_string
+  recognize_rootdevice
+fi
+
+i=0
+while `is_not_up_rootdevice`; do 
+  /bin/busybox usleep 500000
+  /bin/busybox mdev -s 2>/dev/null 
+  /bin/busybox sync 
+  recognize_rootdevice
+  #set_system_variables
+  i=$(( $i + 1 ))
+  if [ $i -ge $(( $MAXCYCLES + 10 )) ]; then break; fi
+done
+#
+#
+if [ "$ROOTDEV" = "" ]; then
+  ROOTDEV="$ROOTDEVOLD"
+fi 
+#
 # set up root by dialog if missing boot parm
 if [ "$ROOTDEV" = "" ]; then
    boot_device_dialog
 fi
 
-parse_rootdevice_string
+[ "$DEBUG" != "" ] && set +x
 
-recognize_rootdevice
-
-i=0
-while `is_not_up_rootdevice`; do 
-  /bin/busybox usleep 250000
-  /bin/busybox mdev -s 2>/dev/null 
-  /bin/busybox sync 
-  recognize_rootdevice
-  set_system_variables
-  i=$(( $i + 1 ))
-  if [ $i -ge $MAXCYCLES ]; then break; fi
-done
-#
-if ! [ -e $ROOTDEV ]; then
+if ! [ -e "$ROOTDEV" ]; then
+  inline_external_file "archvarfile"
+  inline_external_file "$ARCH-functions"  
   boot_device_check
   /bin/busybox sync 
 fi
 debug_shell
+
 
 
 if [ "$NOAUTO" = "" ]; then

@@ -718,7 +718,7 @@ probe_for_kernelmodule_tarball()
 is_not_up_rootdevice()
 {
   #set -x
-  local DEVTREE RDEV SYSBLK rootdev sysblkdev sysdev dev
+  local DEVTREE RDEV SYSBLK rootdev sysblkdev sysdev dev PART
   rootdev=""
   sysblkdev=""
   sysdev=""
@@ -744,7 +744,8 @@ is_not_up_rootdevice()
       break
     fi
   done
-  
+  PART=""
+  RC=5
   if [ "$sysdev" != "" -a "$rootdev" != ""  ]; then
     # can I read the PARTUUID from the required rootdevice?
     PART=`/bin/busybox dd if=/dev/$sysblkdev  bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
@@ -756,8 +757,22 @@ is_not_up_rootdevice()
          BYTE1=`echo $PART | /bin/busybox cut -f3 -d" " 2>/dev/null`
          BYTE2=`echo $PART | /bin/busybox cut -f2 -d" " 2>/dev/null`
          PUUID="$BYTE1$BYTE2"
-         export DISKUUID="$PUUID"
-         export PARTUUID="$DISKUUID-0${ROOTDEV#/dev/$sysblkdev}"
+         if [ "$PUUID" != "" ]; then 
+           if [ "$DISKUUID" = "" ]; then
+             export DISKUUID="$PUUID"
+           else
+             if [ "$PUUID" != "$DISKUUID" ]; then
+               echofile "$INITPREF" "Warning: Found a difference in PARTUUIDs:"
+               echofile "$INITPREF" "Detected PartitionUUID '$PUUID' and the DiskUUID '$DISKUUID' found before differ!"
+               echofile "$INITPREF" "This may cause boot partition failure !"
+             fi
+           fi
+           if [ "PARTUUID" = "" ]; then
+             PARTUUID="$PUUID-0"
+             PARTUUID=${PARTUUID}${ROOTDEV#/dev/$sysblkdev}
+             export PARTUUID
+           fi
+         fi
          return 1
       else
         return 0
@@ -781,6 +796,7 @@ wait_for_rootdevice()
 parse_rootdevice_string()
 {
   # this function only parses, no contact to devices!!!!!
+  #set -x
   local ROOTVAR
   export UUID=""
   export LABEL=""
@@ -936,15 +952,15 @@ recognize_rootdevice()
         DEVROOT2=`/bin/busybox findfs "UUID=$UUID" 2>/dev/null`
       fi
       if [ "$DEVROOT1" != "" -o "$DEVROOT2" != "" ]; then
-      if [ "$DEVROOT1" != "$DEVROOT2" ]; then
-        echoconsole "$INITPREF"  "Warning: Specified UUID and LABEL do not match the same device! "
-        [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1"
-        [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2"
-        echoconsole "$INITPREF"  "Warning: Preferring to use the UUID before LABEL !"        
-      else
-        export ROOTDEV="$DEVROOT1"
-        DEVROOT="$DEVROOT1"
-      fi
+        if [ "$DEVROOT1" != "$DEVROOT2" ]; then
+          echoconsole "$INITPREF"  "Warning: Specified UUID and LABEL do not match the same device! "
+          [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1"
+          [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2"
+          echoconsole "$INITPREF"  "Warning: Preferring to use the UUID before LABEL !"        
+        else
+          DEVROOT="$DEVROOT2"
+          export ROOTDEV="$DEVROOT"          
+        fi
       fi
     fi
     if [ "$DEVROOT" = "" ]; then
@@ -965,6 +981,7 @@ recognize_rootdevice()
         if [ "$TYPE" != "" ]; then
            ROOTDEVTYPE="$TYPE"
         fi
+        [ "$DEVBOOT" != "" ]  && export ROOTDEV="$DEVBOOT"
       else 
         DEVROOT=`echo "$BLKID" | /bin/busybox grep "LABEL=\"$LABEL\"" 2>/dev/null `
         if [ "$DEVROOT" != "" ]; then        
@@ -981,16 +998,18 @@ recognize_rootdevice()
           if [ "$TYPE" != "" ]; then
              ROOTDEVTYPE="$TYPE"
           fi
-          
+          [ "$DEVBOOT" != "" ]  && export ROOTDEV="$DEVBOOT"
         fi
       fi
-      export ROOTDEV="$DEVBOOT"
       export ROOTDEVTYPE UUID LABEL 
     fi
+    #set +x
     return 0
   else # rootdev=""
+    #set +x
      return 5
   fi  # rootdev
+  
 }
 
 recognize_rootdevice_old()
