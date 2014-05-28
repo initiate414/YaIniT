@@ -1,7 +1,7 @@
 #
 #  MODPROBE-FUNCTIONS
 #  for Universal INIT with BusyBox
-#  (C) Dieter Miosga, 2008-2014-05-01
+#  (C) Dieter Miosga, 2008-2014-05-28
 #
 #echo   "modprobe-functions: Being read in...."
 #
@@ -13,18 +13,20 @@ check_for_depmod()
    MODULEFILES="modules.dep modules.alias"
    for file in $MODULEFILES; do
      if [ -e /lib/modules/$KERNVER/$file  ]; then
-       echoconsole  "$INITPREF" "File '$file found for $KERNVER, continuing..."
+       echofile  "$INITPREF" "File '$file' found for $KERNVER, continuing..."
      else
-       echoconsole  "$INITPREF" "File '$file not found for $KERNVER "
+       echofile  "$INITPREF" "File '$file' not found for $KERNVER "
        DEPMOD="depmod"
      fi
    done
    if [ "$DEPMOD" != "" ]; then
-     echoconsole  "$INITPREF" "creating module dependencies.... "
+     echoconsole  "$INITPREF" " Creating module dependencies for $KERNVER ...."
      /bin/busybox depmod  >/dev/null 2>&1
      RC=$?
      /bin/busybox sync 2>/dev/null
      echoconsole  "$INITPREF" "... done with '$RC' !"
+   else
+     echoconsole  "$INITPREF" "$MODULEFILES exist, no 'depmod' necessary, continuing..."
    fi
 }
 #
@@ -65,7 +67,7 @@ probe_kernelmodule_debug()
       /bin/busybox modprobe "$DRIVER"  2>/dev/null
       RC=$?
       echoconsole  "$INITPREF" "probed for kernelmodule '$DRIVER' with '$RC'"
-      if `is_string_in_file  "$DRIVER" "/proc/modules" `; then
+      if `is_string_in_file  "$DRIVER " "/proc/modules" `; then
         echoconsole  "$INITPREF" "kernelmodule '$DRIVER' successfully loaded with '$RC'"
       else
         echoconsole  "$INITPREF" "kernelmodule '$DRIVER' failed or not yet loaded with '$RC'"

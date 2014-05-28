@@ -10,26 +10,44 @@ by Dieter Miosga
 Changes:
 --------
 
+2014-05-28 : 
+resvised scripts with some new functions
+
+
 2014-04-30 :
 some important changes and corrections
 
 2014-04-22 :
-1) restructured online project with two more branches
-for being able downloading independently 
-patches, scripts and configurations, and binaries
-2) uploaded patches and some more kernel binaries
-3) revised and corrected YaIniT scripts
 
+1) restructured online project with two more branches
+    for being able downloading independently 
+    patches, scripts and configurations, and binaries
+
+2) uploaded patches and some more kernel binaries
+      
+3) revised and corrected YaIniT scripts
+    
 2014-04-08 : 
-- added files 
+1) added files: 
+ 
    vmlinuz-3.12.4.bfs4444yainitu-2se3   # test kernel with most modules optimized for SSE3-i686/prescott 
+   
    System.map-3.12.4.bfs4444yainitu-2se3  
+
    zp-3.12.4.bfs4444yainitu-2se3-xz.sfs  # squashfs with all modules to mount under /lib/modules/`uname -r`/kernel
+   
    yatiny-2se3.gz    #  intrd file containing the squashfs with modules
-- applied some corrections for system filesystem management (procfs,sysfs,debugfs,hugtlbfs,tmpfs,shmfs,devtmpfs,devpts)
-- applied some corrections to scripts
-- done some tests on automatic module loading
-  kernel should boot with grub1 into Mageia 3/4 , OpenSuSE-11.x/12.x/13.1, Ubuntu, Fedora
+   
+2) applied some corrections for system filesystem management 
+
+    (procfs,sysfs,debugfs,hugtlbfs,tmpfs,shmfs,devtmpfs,devpts)
+
+3)  applied some corrections to scripts
+
+4)  done some tests on automatic module loading 
+
+    kernel should boot now with grub1 into Mageia 3/4 , OpenSuSE-11.x/12.x/13.1, Ubuntu, Fedora
+
 
 2014-04-02 :
 done some corrections and minor logic changes 

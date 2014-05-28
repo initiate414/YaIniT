@@ -3,7 +3,7 @@
 #            installed system
 #            This requires that your kernel supports initramfs!!!
 #   This version is a complete workover from 2009 
-#   (c) Dieter Miosga 2009-06-01 through 2014-05-01
+#   (c) Dieter Miosga 2009-06-01 through 2014-05-28
 if [ "$ROOTDIR" = "" ]; then 
   ROOTDIR=/mnt
 fi
@@ -22,44 +22,83 @@ header "for support contact the author mailto:dieter.miosga<at>gmx.de "
 
 
 
-#[ "$KERNVER" = "" ] && kernvercheck
-[ "$DEBUG" != "" ] && set -x
-if [ "$ROOT" = "" -o "$ROOTDEV" = "" ]; then
+[ "$KERNVER" = "" ] && 
+{
+  set_kernver
+  assign_kernver_vars
+}
+# temporarily for testing purposes
+start_tracing
+#
+# in case of unrecognized cmdline informations
+if [ "$ROOT" = "" ]; then
   read_cmdline
+  assign_init_variables
+fi
+#
+if [ "$ROOTDEV" = "" ]; then  
   parse_rootdevice_string
 fi
-
-ROOTDEVOLD="$ROOTDEV"
-recognize_rootdevice
-
-if [ "$ROOTDEV" = "$ROOTDEVOLD" ]; then
-  parse_rootdevice_string
+#
+if [ "$ROOT" != "" ]; then
+  ROOTDEVOLD="$ROOTDEV"
+  echolog  "Recognizing rootfilesystem device"
   recognize_rootdevice
-fi
-
-i=0
-while `is_not_up_rootdevice`; do 
-  /bin/busybox usleep 500000
   /bin/busybox mdev -s 2>/dev/null 
-  /bin/busybox sync 
-  recognize_rootdevice
-  #set_system_variables
-  i=$(( $i + 1 ))
-  if [ $i -ge $(( $MAXCYCLES + 10 )) ]; then break; fi
-done
+  /bin/busybox usleep 500000 2>/dev/null 
+  /bin/busybox sync  2>/dev/null 
+  #
+  # if the root device is specified but still unrecognized
+  if [ "$ROOTDEV" = "$ROOTDEVOLD" ]; then
+    echolog  "Rootfilesystem device not correctly detetcted!"
+    echolog  "Rereading and waiting for it to come up...."
+    parse_rootdevice_string
+  fi
+  # the loop during await rootdevice to come up
+  if [ "$MAXCYCLES" = "" -o $MAXCYCLES -lt 10 ]; then
+    MAXCYCLES=10
+  fi
+  i=0
+  while [ $i -le $MAXCYCLES ] ; do 
+    if  `is_not_up_blockdevice "$ROOTDEV" setpartuuid`; then
+      /bin/busybox mdev -s 2>/dev/null 
+      /bin/busybox usleep 500000 2>/dev/null 
+      /bin/busybox sync  2>/dev/null 
+      recognize_rootdevice
+    else 
+      break
+    fi
+    i=$(( $i + 1 ))
+  done
+  #
+  # fallback if still none is found
+  if [ "$ROOTDEV" = "" ]; then
+    ROOTDEV="$ROOTDEVOLD"
+    echolog  "Rereading and waiting for it to come up...."
+  else
+    echolog ".... found: up and readable rootfilesystem device '$ROOTDEV' "  
+  fi 
+  #
+  # set up root by dialog if missing cmdline parameter
+  if [ "$ROOTDEV" = "" -a "$I" != "" ]; then
+    echolog  " Entering shell prompt to specify interactively "
+    echolog  " the undiscovered rootfilesystem device : "
+    boot_device_dialog
+  fi
 #
-#
-if [ "$ROOTDEV" = "" ]; then
-  ROOTDEV="$ROOTDEVOLD"
+else
+  if [ "$I" != "" ]; then
+    echolog  "Interactive use specified, entering prompt: "
+    boot_device_dialog
+  elif [ "$ROOTDEV" = "" ]; then
+    echolog  "No root parameter specified, entering prompt: "
+    boot_device_dialog
+  fi
 fi 
-#
-# set up root by dialog if missing boot parm
-if [ "$ROOTDEV" = "" ]; then
-   boot_device_dialog
-fi
+# temporarily for testing purposes
+stop_tracing
 
-[ "$DEBUG" != "" ] && set +x
-
+# for ultimate security : more complicated and expensive check of rootdevice
 if ! [ -e "$ROOTDEV" ]; then
   inline_external_file "archvarfile"
   inline_external_file "$ARCH-functions"  
@@ -79,8 +118,8 @@ if [ "$NOAUTO" = "" ]; then
   #   is the running kernel the ultimate solution in optimization?
   #if [ "$(echo $KERNVER | /bin/busybox grep "$EXTENT")" = ""  ]; then
   
-  set_kernver
-  assign_kernver_vars
+  #set_kernver
+  #assign_kernver_vars
   #if `is_substring_of "$EXTENT" "$KERNVER"`; then
   if [ "$EXTENT" = "$SUFFIXKERNVER" ]; then
     # if we have initrd variable correctly set at cmdline 
@@ -132,7 +171,7 @@ if [ "$NOAUTO" = "" ]; then
    fi
    ##
   else
-      echolog " confirming kernel $KERNVER is no more optimizable for $EXTENT, continuing......."
+    echolog " confirming kernel $KERNVER is no more optimizable for $EXTENT, continuing......."
   fi
 
   /bin/busybox sync 
@@ -157,12 +196,10 @@ remount_ro()
 echolog "booting for root device $ROOTDEV ......"
 debug_shell
 
-#if [ "$(echo $ROOTDEV | /bin/busybox cut -c 1-6 )" != "/dev/s" -o  "$(echo $ROOTDEV | /bin/busybox cut -c 1-7 )" != "/dev/hd" ]; then
-#  modprobe_essential_modules
- if ! [ -e $ROOTDEV ]; then
-    fatal "Root device ' $ROOTDEV ' not found !"
- fi
-#fi
+
+if ! [ -e $ROOTDEV ]; then
+  fatal "Root device ' $ROOTDEV ' not found !"
+fi
 
 
 debug_shell
@@ -171,22 +208,22 @@ if [ -n "$KEYMAP" ]; then
   echolog "${INITRD}:  Loading '$KEYMAP' keyboard mapping:"
   /bin/busybox tar xzOf /etc/keymaps.tar.gz ${KEYMAP}.bmap | loadkmap  2>/dev/null
 fi
-
+# Rescue mode (from SLackware)
 if [ "$RESCUE" != "" ]; then # modified from Slackware
   # branch to rescue mode and perform a simple switch_root, 
   # if otherwise the system with the chroot preference hangs
 #  rescue mode
-   if ! [ -e $ROOTDEV ]; then
-     ROOTDEV="$(verify_device "$ROOTDEV")"
-   fi
-   if  [ -e $ROOTDEV ]; then
+  if ! [ -e $ROOTDEV ]; then
+    ROOTDEV="$(verify_device "$ROOTDEV")"
+  fi
+  if  [ -e $ROOTDEV ]; then
     echolog "root device $ROOTDEV appeared...."
-   else
-     ROOTDEV="$(verify_device "$ROOTDEV")"
-     if ! [ -e $ROOTDEV ]; then
+  else
+    ROOTDEV="$(verify_device "$ROOTDEV")"
+    if ! [ -e $ROOTDEV ]; then
       echolog  "...root device $ROOTDEV not found , you must specify correct root device or attach the relevant media!"
-     fi 
-   fi
+    fi 
+  fi
   echolog "RESCUE mode"
   echolog " "
   echolog "        You can try to fix or rescue your system now. If you want"
@@ -205,13 +242,14 @@ if [ "$RESCUE" != "" ]; then # modified from Slackware
   /bin/busybox switch_root  "$ROOTDIR" "/bin/busybox init" "$RUNLEVEL"
   echo "You arrived at a place in '$0' which should never be reached!"
   fatal " Check your scripts and system setup!"   
-fi
+fi # rescue mode
 # Initialize RAID:
-if [ -x /sbin/mdadm ]; then
-  /sbin/mdadm -E -s >/etc/mdadm.conf
-  /sbin/mdadm -A -s
-fi
-
+if [ "$NORAID" = "" ]; then 
+  if [ -x /sbin/mdadm ]; then
+    /sbin/mdadm -E -s >/etc/mdadm.conf
+    /sbin/mdadm -A -s
+  fi
+fi # noraid
 # Make encrypted root partition available:
 # The useable device will be under /dev/mapper/
 # Three scenarios for the commandline exist:
@@ -222,39 +260,41 @@ fi
 # Test if ROOTDEV is "/dev/someting" or just "something" - the first means
 # ROOTDEV is on a LVM volume (scenario 2); we don't need to rewrite ROOTDEV.
 # The second means that ROOTDEV is on a LUKS volume (scenario 1).
-CRYPTDEV=""
-if [ -x /sbin/cryptsetup ]; then
-  # If we find a LUKS device now, it is on a real block device: 
-  if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
-    CRYPTDEV=$(/bin/busybox basename $ROOTDEV)
-    echolog "Unlocking LUKS crypt volume '${CRYPTDEV}' on device '$LUKSDEV':"
-    /sbin/cryptsetup luksOpen ${LUKSDEV} $CRYPTDEV </dev/systty >/dev/systty 2>&1
-    if [ "$CRYPTDEV" == "$ROOTDEV" ]; then # scenario 1
-      ROOTDEV="/dev/mapper/${CRYPTDEV}"
+if [ "$NOCRYPT" = "" ]; then
+  CRYPTDEV=""
+  if [ -x /sbin/cryptsetup ]; then
+    # If we find a LUKS device now, it is on a real block device: 
+    if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
+      CRYPTDEV=$(/bin/busybox basename $ROOTDEV)
+      echolog "Unlocking LUKS crypt volume '${CRYPTDEV}' on device '$LUKSDEV':"
+      /sbin/cryptsetup luksOpen ${LUKSDEV} $CRYPTDEV </dev/systty >/dev/systty 2>&1
+      if [ "$CRYPTDEV" == "$ROOTDEV" ]; then # scenario 1
+        ROOTDEV="/dev/mapper/${CRYPTDEV}"
+      fi
     fi
   fi
-fi
-
-# Initialize LVM:
-if [ -x /sbin/vgscan ]; then
-  /sbin/vgscan --mknodes --ignorelockingfailure
-  sleep 10
-  /sbin/vgchange -ay --ignorelockingfailure
-fi
-
-# Make encrypted root partition available (scenario 3):
-# We have to handle cases here where the LUKS volume is created on a LV
-if [ -x /sbin/cryptsetup ]; then
-  if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
-    # Only act if we could not open the LUKS device before (i.e. is on a LV):
-    if [ "x$CRYPTDEV" == "x" ]; then
-      echolog "Unlocking LUKS crypt volume '${ROOTDEV}' on device '$LUKSDEV':"
-      /sbin/cryptsetup luksOpen ${LUKSDEV} $ROOTDEV </dev/systty >/dev/systty 2>&1
-      ROOTDEV="/dev/mapper/${ROOTDEV}"
+  
+  # Initialize LVM:
+  if [ -x /sbin/vgscan ]; then
+    /sbin/vgscan --mknodes --ignorelockingfailure
+    sleep 10
+    /sbin/vgchange -ay --ignorelockingfailure
+  fi
+  
+  # Make encrypted root partition available (scenario 3):
+  # We have to handle cases here where the LUKS volume is created on a LV
+  if [ -x /sbin/cryptsetup ]; then
+    if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
+      # Only act if we could not open the LUKS device before (i.e. is on a LV):
+      if [ "x$CRYPTDEV" == "x" ]; then
+        echolog "Unlocking LUKS crypt volume '${ROOTDEV}' on device '$LUKSDEV':"
+        /sbin/cryptsetup luksOpen ${LUKSDEV} $ROOTDEV </dev/systty >/dev/systty 2>&1
+        ROOTDEV="/dev/mapper/${ROOTDEV}"
+      fi
     fi
   fi
-fi
 
+fi # nocrypt
 # Resume state from swap
 if [ "$RESUMEDEV" != "" ]; then
   if  [ "$(/bin/busybox  ls -l $RESUMEDEV | /bin/busybox cut -c 1 2>/dev/null)" = "l" ] ; then
@@ -275,7 +315,7 @@ if ! [ -e $ROOTDEV ]; then
  set_system_variables
 fi
 if  [ -e $ROOTDEV ]; then
-echolog "root device $ROOTDEV appeared...."
+  echolog "root device $ROOTDEV appeared...."
 else
  ROOTDEV="$(verify_device "$ROOTDEV")"
  set_system_variables
@@ -322,23 +362,20 @@ if [ $? -ne 0 ]; then
 else
   echolog " mounted $MOUNTCMD $ROOTDEV at $ROOTDIR ! "
 fi
-
+#
 if [ "$(/bin/busybox ls -1 $ROOTDIR 2>/dev/null)" != ""  ]; then 
   echolog " successful: $ROOTDEV at $ROOTDIR accessible in $MOUNTMODE "
 else
   fatal "Root device $ROOTDEV not mountable at Directory $ROOTDIR 
-    or root filesystem is empty! Reset system or verify parameters."
+    or root filesystem is empty! Reconfigure your system 
+    or verify the kernel commandline parameters."
 fi
-
-
+#
 if [ "$LAYERFS" = "unionfs"  ]; then 
    /bin/busybox mount  -o remount,rw /
 fi
-
-#if [ "$MOUNTMODE" != "ro" ]; then
-#  /bin/busybox cp -f /var/log/livedbg $ROOTDIR/var/log/livedbg 
-#fi 
-# find chroot and init
+#
+# find chroot, switch_root and init
 CHROOT=""
 INIT=""
 SWITCHROOT=""
@@ -348,37 +385,36 @@ if [ -e /bin/busybox ];       then
    CHROOTBB="/bin/busybox chroot"
    SWITCHROOTBB="/bin/busybox switch_root"
 fi
-
+#
 # assign preferrably files in the target system
 if [ -e $ROOTDIR/bin/chroot ];         then  CHROOT="$ROOTDIR/bin/chroot";      fi
-
+#
 if [ "$CHROOT" = "" ]; then
   if [ -e $ROOTDIR/sbin/chroot ];      then  CHROOT="$ROOTDIR/sbin/chroot";     fi
 fi
-
+#
 if [ "$CHROOT" = "" ]; then
   if [ -e $ROOTDIR/usr/bin/chroot ];   then  CHROOT="$ROOTDIR/usr/bin/chroot";  fi
 fi
-
+#
 if [ "$CHROOT" = "" ]; then
   if [ -e $ROOTDIR/usr/sbin/chroot ];   then  CHROOT="$ROOTDIR/usr/sbin/chroot"; fi
 fi
-
+#
 if [ -e $ROOTDIR/bin/switch_root ];     then  SWITCHROOT="$ROOTDIR/bin/switch_root";      fi
-
+#
 if [ "$SWITCHROOT" = "" ]; then
   if [ -e $ROOTDIR/sbin/switch_root ];  then  SWITCHROOT="$ROOTDIR/sbin/switch_root";     fi
 fi
-
+#
 if [ "$SWITCHROOT" = "" ]; then
   if [ -e $ROOTDIR/usr/bin/switch_root ];  then  SWITCHROOT="$ROOTDIR/usr/bin/switch_root";  fi
 fi
-
+#
 if [ "$SWITCHROOT" = "" ]; then
   if [ -e $ROOTDIR/usr/sbin/switch_root ]; then  SWITCHROOT="$ROOTDIR/usr/sbin/switch_root"; fi
 fi
-
-
+#
 if [ -e $ROOTDIR/bin/init ];  then
    INIT="./bin/init"
 fi  
@@ -391,22 +427,35 @@ fi
 if [ "$INIT" = "" ]; then
   if [ -e $ROOTDIR/usr/bin/init ]; then INIT="./usr/bin/init"; fi
 fi
-
+if [ "$INIT" = "" ]; then
+  if [ -e $ROOTDIR/sbin/sysvinit ]; then INIT="./sbin/sysvinit"; fi
+fi
+if [ "$INIT" = "" ]; then
+  if [ -e $ROOTDIR/bin/sysvinit ]; then INIT="./bin/sysvinit"; fi
+fi
+if [ "$INIT" = "" ]; then
+  if [ -e $ROOTDIR/usr/bin/sysvinit ]; then INIT="./usr/bin/sysvinit"; fi
+fi
+if [ "$INIT" = "" ]; then
+  if [ -e $ROOTDIR/usr/sbin/sysvinit ]; then INIT="./usr/sbin/sysvinit"; fi
+fi
+if [ "$INIT" = "" ]; then
+  if [ -e $ROOTDIR/usr/lib/systemd/systemd ]; then INIT="./usr/lib/systemd/systemd"; fi
+fi
+#
 INITBB=""
 if [ -e /bin/busybox ];       then  
   INITBB="/bin/busybox init"
 fi
 /bin/busybox sync
-
-
+#
 if  [ "$INIT" != "" ]; then
   echolog " INIT :  '$INIT ' found on root device $ROOTDEV ."
 else
   echolog "ERROR:  No   sbin/init or  bin/init found on root device $ROOTDEV ."
 fi
-
+#
 debug_shell
-
 # make sure some devices are there
 if ! [ -e $ROOTDIR/dev/console ]; then
   remount_rw
@@ -416,7 +465,7 @@ if ! [ -e $ROOTDIR/dev/console ]; then
     echolog " $ROOTDIR/dev/console not created without errors: '$RC' "
   fi
 fi
-
+#
 if ! [ -e $ROOTDIR/dev/initctl ]; then
   remount_rw
   /bin/busybox mkfifo -m 0755 $ROOTDIR/dev/initctl 2>/dev/null
@@ -425,11 +474,11 @@ if ! [ -e $ROOTDIR/dev/initctl ]; then
     echolog " $ROOTDIR/dev/initctl not created without errors: '$RC' "
   fi
 fi
-
+#
 if ! [ -e /dev/initctl ]; then 
   /bin/busybox mkfifo -m 0755 /dev/initctl   2>/dev/null
 fi
-
+#
 if ! [ -e /dev/console  ]; then 
   /bin/busybox mknod /dev/console c 5 1  2>/dev/null
   if [ $? -ne 0 ]; then 
@@ -437,7 +486,7 @@ if ! [ -e /dev/console  ]; then
     echolog "/dev/console not created without errors: '$RC' "
   fi
 fi
-
+#
 if ! [ -e  dev/console  ]; then 
   /bin/busybox mknod  dev/console c 5 1  2>/dev/null
   if [ $? -ne 0 ]; then 
@@ -445,7 +494,7 @@ if ! [ -e  dev/console  ]; then
     echolog "  dev/console not created without errors: '$RC' "
   fi
 fi
-
+#
 if ! [ -e $ROOTDIR/dev/null ]; then
   remount_rw
   /bin/busybox mknod $ROOTDIR/dev/null c 1 3   2>/dev/null
@@ -454,20 +503,23 @@ if ! [ -e $ROOTDIR/dev/null ]; then
     echolog " $ROOTDIR/dev/null not created without errors: '$RC' "
   fi
 fi
-
+#
 debug_shell
-
+#
 if [ "`/bin/busybox grep $ROOTDIR < /proc/mounts | /bin/busybox grep "rw," 2>/dev/null`" != "" ]; then
   /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
   /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
   /bin/busybox cp -f $LOGFILE   $ROOTDIR/var/log 2>/dev/null
   /bin/busybox cp -f $LOGFILE   $ROOTDIR  2>/dev/null
   if [ "$DEBUG" != "" ]; then
-     /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
+    /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
   fi
-  [ "$MSGFILE" != "" ] && /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
-  [ "$MSGFILE" != "" ] && /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
-  [ "$MSGFILE" != "" ] && /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
+  [ "$MSGFILE" != "" ] && 
+  { 
+    /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
+    /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
+    /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
+  }
   #FSTABROOT="`/bin/busybox cat $ROOTDIR/etc/fstab 2>/dev/null | /bin/busybox grep " / "   2 >/dev/null`"
   #FSTABROOTDEV="`/bin/busybox cat $ROOTDIR/etc/fstab 2>/dev/null | /bin/busybox grep "$ROOTDEV" 2>/dev/null`"
   #if [ "$FSTABROOT" != "$FSTABROOTDEV" ]; then
@@ -481,34 +533,48 @@ else
   echolog "not saving messagefiles and changes to target '$ROOTDEV'"
 fi
 if [ "$MOUNTMODE" = "ro" ]; then
-  remount_ro
+   remount_ro
 fi
-
+#
 if [ "$LAYERFS" = "unionfs"  ]; then 
    /bin/busybox mount  -o remount,rw /
 fi
-
+#
 unset ERR
-
+#
 echolog "${INITRD}:  exiting and switching to target rootfilesystem at $ROOTDEV....."
 debug_shell
 
-if [ "$CHROOTBB" != "" ]; then
+start_tracing
+# TODO: check for rootfs-switch more comfortable
+if [ "$ROOTSWITCH" = "" ]; then
+   inline_external_file "initvariables"
+   inline_external_file "yainitdefaults"
+   /bin/busybox sync
+fi
+if [ "$ROOTSWITCH" = "" ]; then
+  ROOTSWITCH=chroot
+fi
+
+source filesys-functions
+/bin/busybox sync
+
+cd   $ROOTDIR
+
+unmount_procfs_sysfs
+/bin/busybox sync
+if [ $(/bin/busybox wc -l </proc/mounts 2>/dev/null) -gt 1 ]; then 
+  unmount_all_nodev_filesystems
+  /bin/busybox sync
+fi
+stop_tracing
+
+if [ "$CHROOTBB" != "" -a "$ROOTSWITCH" = "chroot" ]; then
   cd   $ROOTDIR
   echolog "${INITRD} @DIR:`pwd`:  ...issuing command: exec  $CHROOTBB ./ $INIT $RUNLEVEL < dev/console > dev/console 2>&1"
-  /bin/busybox umount /sys/kernel/debug   2>/dev/null
-  /bin/busybox umount /proc  2>/dev/null
-  /bin/busybox umount /sys   2>/dev/null
-  /bin/busybox umount -af    2>/dev/null
-  if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
-    /bin/busybox umount -a -f    2>/dev/null
-    /bin/busybox umount debugfs   2>/dev/null
-    /bin/busybox umount procfs  2>/dev/null
-    /bin/busybox umount sysfs   2>/dev/null
-    /bin/busybox umount tmpfs   2>/dev/null
-    /bin/busybox umount hugetlbfs   2>/dev/null
-    /bin/busybox umount devpts   2>/dev/null      
-  fi 
+  
+  #umount_all_filesystems
+  debug_shell
   exec  $CHROOTBB  ./  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
   if [ $? -ne 0 ]; then 
     echolog "${INITRD}:  changing root to bootfilesystem $ROOTDIR not successfull, retrying....."
@@ -517,26 +583,16 @@ if [ "$CHROOTBB" != "" ]; then
     exec  $CHROOTBB  ./  $INITBB  $RUNLEVEL  < dev/console > dev/console 2>&1
     exec $CHROOTBB  ./  etc/rc.d/rc.S   < dev/console > dev/console 2>&1
   fi
-  mount_filesystems "$INITPREF"
+  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
-if [ "$SWITCHROOTBB" != "" ]; then
-  #cd   $ROOTDIR
+if [ "$SWITCHROOTBB" != "" -a "$ROOTSWITCH" = "switch_root" ]; then
+  cd   $ROOTDIR
   echolog "${INITRD}:`pwd`:  ...issuing command: exec  $SWITCHROOTBB $ROOTDIR $INIT $RUNLEVEL <dev/console >dev/console 2>&1"
-  /bin/busybox umount /sys/kernel/debug   2>/dev/null
-  /bin/busybox umount /proc 2>/dev/null
-  /bin/busybox umount /sys  2>/dev/null
-  /bin/busybox umount -a -f    2>/dev/null
-  if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
-    /bin/busybox umount -a -f    2>/dev/null
-    /bin/busybox umount debugfs   2>/dev/null
-    /bin/busybox umount procfs  2>/dev/null
-    /bin/busybox umount sysfs   2>/dev/null
-    /bin/busybox umount tmpfs   2>/dev/null
-    /bin/busybox umount hugetlbfs   2>/dev/null
-    /bin/busybox umount devpts   2>/dev/null      
-  fi 
+  
+  #umount_all_filesystems
+  debug_shell
   exec  $SWITCHROOTBB   $ROOTDIR  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
   if [ $? -ne 0 ]; then 
     echolog "${INITRD}:  changing root to bootfilesystem $ROOTDIR not successfull, retrying....."
@@ -544,65 +600,45 @@ if [ "$SWITCHROOTBB" != "" ]; then
     exec  $SWITCHROOTBB   $ROOTDIR  $INITBB  $RUNLEVEL  < dev/console > dev/console 2>&1
     #exec $CHROOTBB  ./  etc/rc.d/rc.S   < dev/console > dev/console 2>&1
   fi
-  mount_filesystems "$INITPREF"
+  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
 
-if [ -e $CHROOT ]; then
+if [ -e $CHROOT -a "$ROOTSWITCH" = "chroot" ]; then
   cd   $ROOTDIR
   echolog "${INITRD} @DIR:`pwd`:  ...issuing command: exec  $CHROOT ./ $INIT $RUNLEVEL < dev/console > dev/console 2>&1"
-  /bin/busybox umount /sys/kernel/debug   2>/dev/null
-  /bin/busybox umount /proc  2>/dev/null
-  /bin/busybox umount /sys   2>/dev/null
-  /bin/busybox umount -af    2>/dev/null
-  if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
-    /bin/busybox umount -a -f    2>/dev/null
-    /bin/busybox umount debugfs   2>/dev/null
-    /bin/busybox umount procfs  2>/dev/null
-    /bin/busybox umount sysfs   2>/dev/null
-    /bin/busybox umount tmpfs   2>/dev/null
-    /bin/busybox umount hugetlbfs   2>/dev/null
-    /bin/busybox umount devpts   2>/dev/null      
-  fi 
+  
+  #umount_all_filesystems
+  debug_shell
   exec  $CHROOT  ./  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
   echolog "${INITRD}: failed chroot with system commands, falling back to busybox commands...."
-  mount_filesystems "$INITPREF"
+  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
-if [ -e $SWITCHROOT ]; then
+if [ -e $SWITCHROOT -a "$ROOTSWITCH" = "switch_root" ]; then
   echolog "${INITRD}:  ....switching root with $SWITCHROOT to bootfilesystem $ROOTDIR at $ROOTDEV"
-  cd  /
+  cd  $ROOTDIR
+  debug_shell
+  #umount_all_filesystems
   
-  /bin/busybox umount /sys/kernel/debug  2>/dev/null
-  /bin/busybox umount /proc  2>/dev/null
-  /bin/busybox umount /sys   2>/dev/null
-  /bin/busybox umount -af    2>/dev/null
-  if [ `/bin/busybox cat /proc/mounts 2>/dev/null | /bin/busybox wc -l 2>/dev/null` -gt 0 ]; then 
-    /bin/busybox umount -a -f    2>/dev/null
-    /bin/busybox umount debugfs   2>/dev/null
-    /bin/busybox umount procfs  2>/dev/null
-    /bin/busybox umount sysfs   2>/dev/null
-    /bin/busybox umount tmpfs   2>/dev/null
-    /bin/busybox umount hugetlbfs   2>/dev/null
-    /bin/busybox umount devpts   2>/dev/null      
-  fi 
   exec $SWITCHROOT -c /dev/console $ROOTDIR  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
   echolog "${INITRD}: failed switch_root with system commands, falling back to busybox commands...."
   #exec /bin/busybox switch_root -c /dev/console $ROOTDIR  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
-  mount_filesystems "$INITPREF"
+  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin 
 fi
 
 cd /
 echolog "${INITRD}:  falling back to $0-switch_root...... "
+debug_shell
 exec switch_root -c /dev/console $ROOTDIR  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
 # at last:
 cd   $ROOTDIR
 exec $CHROOTBB ./  2>/dev/null  
 echo "You arrived at a place in '$0' which should never be reached!"
-fatal " Check your scripts and system setup!" 
+fatal " Check your scripts and system setup and correct it!" 
 
 exit 99
 

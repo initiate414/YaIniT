@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for Universal INIT with busybox
-#  (C) Dieter Miosga , 2008-2014-05-01, dieter.miosga@gmx.de
+#  (C) Dieter Miosga , 2008-2014-05-28, dieter.miosga@gmx.de
 #
 #set -x
 #
@@ -41,9 +41,11 @@ error2ash()
  fi
  if [ "$SYSERRFATAL" != "" ]; then 
    local CRASH INSERT
-   CRASH=`/bin/busybox -D crasher 2>/dev/null`
+   CRASH=`/bin/busybox modprobe -D crasher 2>/dev/null`
    if [ "$CRASH" != "" ]; then
-     modprobe crasher 2>/dev/null
+     echoconsole  "$1" ".... due to fatal error, system is forced to crash now!"
+     echoconsole  "$1" "If it is not crahsng right after here, it will continue unstable until crash!"
+     /bin/busybox modprobe crasher 2>/dev/null
    fi
  fi
 }
@@ -70,6 +72,7 @@ inline_external_file()
     echo  "$INITPREF Please correct it at the /bin/busybox ash shell prompt "
     echo  "$INITPREF by creating this file and press <ctrl-d> afterwards or "
     echo  "$INITPREF press <ctrl-alt-del> for reboot......"
+    echo  "$INITPREF ......and reconfigure your YaIniT system"
     /bin/busybox ash < /dev/console
   fi
 }
@@ -89,9 +92,19 @@ debug_mark()
   fi
 }
 #
+start_tracing()
+{
+  [ "$DEBUG" != "" -a "$INITDBG" != "" ] && set -x
+}
+#
+stop_tracing()
+{
+  [ "$DEBUG" != "" -a "$INITDBG" != "" ] && set +x
+}
+#
 assign_kernver_vars()
 {
-  local LVER SEPAR RC TRUNKKERNVAR SECEXTRAKERNVER
+  local LVER SEPAR RC TRUNKKERNVER SECEXTRAKERNVER
   #set -x
   LVER=$(echo $KERNVER | /bin/busybox tr "-" "." 2>/dev/null) 
   if [ "$LVER" != "$KERNVER" ]; then 
@@ -181,7 +194,7 @@ assign_kernver_vars()
       if [ "$(echo $MINORKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" != "" ]; then
          EXTRAKERNVER=${MINORKERNVER} #//$SEPAR$SUFFIXKERNVER}
          MINORKERNVER=""
-         # allow up 10^i -1 = 10**i -1 different subversions  
+         # allow up (10^i) -1 = (10**i) -1 different subversions  
          for i in 1 2 3 4; do
            TRUNKKERNVER=${EXTRAKERNVER:0:$i}  
            if [ "$(echo $TRUNKKERNVER | /bin/busybox tr -d [:digit:] 2>/dev/null)" = "" ]; then
@@ -329,7 +342,6 @@ purge_unused_kernelmodules()
 #
 make_devfs()
 {
-
     /bin/busybox mdev -s  2>/dev/null
     if [ $? -eq 0 ]; then 
       /bin/busybox sync  2>/dev/null
@@ -338,7 +350,6 @@ make_devfs()
       echoconsole  "$1" " error in creating device files!"
       error2ash  $1
     fi
-
 }
 #
 assign_busybox_aliases()
@@ -436,7 +447,7 @@ remove_from_string()
     eval STRINGVAR="\$$2"
     STRING=""
     for DRV in $STRINGVAR; do
-      if `is_not_substring_of  " $DRV " " $RMVAR "`; then 
+      if `is_not_substring_of  "$DRV " "$RMVAR "`; then 
         STRING="$STRING $DRV "
       fi
     done
@@ -454,48 +465,54 @@ get_partuuids()
 {
   local DISK BLOCKDEVICES DISKID PARTUUID BYTE1 BYTE2
   BLOCKDEVICES=""
-  for DISK in `/bin/busybox ls -1d /sys/block/sd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/hd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/mmcblk* 2>/dev/null` ; do
+  #for DISK in `/bin/busybox ls -1d /sys/block/sd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/hd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/mmcblk* 2>/dev/null` ; do
+  for DISK in `/bin/busybox ls -1d /sys/block/* 2>/dev/null` ; do
      BLOCKDEVICES="$BLOCKDEVICES `/bin/busybox basename "$DISK" 2>/dev/null` "
   done
   DISKID=""
   for DISK in $BLOCKDEVICES; do
+     PARTUUID=""
      # extract the partuuid information from partition table
      DISKID=`/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
-     if [ $? -eq 0 ]; then
-       PARTUUID=""
+     if [ $? -eq 0 -a "$DISKID" != "" ]; then
+       BYTE1=${DISKID:8:4}
+       BYTE2=${DISKID:13:4}
+       PARTUUID="$BYTE2$BYTE1"       
        # reorder the words containing the partuuid 
-       BYTE1=`echo $DISKID | /bin/busybox cut -f3 -d" " 2>/dev/null`
-       BYTE2=`echo $DISKID | /bin/busybox cut -f2 -d" " 2>/dev/null`
-       PARTUUID="$BYTE1$BYTE2"
-       echo "$DISK|$PARTUUID"
-     else
-       echo "|"
+       #BYTE1=`echo $DISKID | /bin/busybox cut -f3 -d" " 2>/dev/null`
+       #BYTE2=`echo $DISKID | /bin/busybox cut -f2 -d" " 2>/dev/null`
+       #PARTUUID="$BYTE1$BYTE2"
      fi
+     echo "$DISK|$PARTUUID"
   done
-
 }
 #
 get_blockdev_from_partuuid()
 {
   if [ "$1" != "" ]; then
-    local DISK BLOCKDEVICES DISKID DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
+    local SYSBLK DISK BLOCKDEVICES DISKID DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
     DISKPARTUUID="$1"
     DISKPNUM=$(( ${DISKPARTUUID#*-} ))
     DISKPARTUUID=${DISKPARTUUID//-*}
     BLOCKDEVICES=""
-    for DISK in `/bin/busybox ls -1d /sys/block/sd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/hd* 2>/dev/null` `/bin/busybox ls -1d /sys/block/mmcblk* 2>/dev/null` ; do
-       BLOCKDEVICES="$BLOCKDEVICES `/bin/busybox basename "$DISK" 2>/dev/null` "
+    SYSBLK=""
+    SYSBLK=$(/bin/busybox ls -1d /sys/block/* 2>/dev/null)
+    for DISK in $SYSBLK ; do
+       BLOCKDEVICES="$BLOCKDEVICES ${DISK#/sys/block/} "
     done
     DISKID=""
     for DISK in $BLOCKDEVICES; do
        # extract the partuuid information from partition table
-       DISKID=`/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
-       if [ $? -eq 0 ]; then
+       DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null) # | /bin/busybox tr "\n" " " 2>/dev/null`
+       if [ $? -eq 0 -a "$DISKID" != "" ]; then
          PUUID=""
          # reorder the words containing the partuuid 
-         BYTE1=`echo $DISKID | /bin/busybox cut -f3 -d" " 2>/dev/null`
-         BYTE2=`echo $DISKID | /bin/busybox cut -f2 -d" " 2>/dev/null`
-         PUUID="$BYTE1$BYTE2"
+         BYTE1=${DISKID:8:4}
+         BYTE2=${DISKID:13:4}
+         PUUID="$BYTE2$BYTE1"
+         #BYTE1=`echo $DISKID | /bin/busybox cut -f3 -d " " 2>/dev/null`
+         #BYTE2=`echo $DISKID | /bin/busybox cut -f2 -d " " 2>/dev/null`
+         #PUUID="$BYTE1$BYTE2"
          if [ "$PUUID" = "$DISKPARTUUID" ]; then
            echo "/dev/$DISK$DISKPNUM"
            return 0
@@ -511,5 +528,119 @@ get_blockdev_from_partuuid()
     return 1
   fi
 }
-
+#
+get_partuuid_from_blockdev()
+{
+  if [ "$1" != "" ]; then
+    local SYSBLK DISK DISKID DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
+    DISKPARTUUID=""
+    SYSBLK="$1"
+    if [ -e $SYSBLK ]; then
+      DISK=${SYSBLK#/dev/}
+      [ "$DISK" = "$SYSBLK" ] && DISK=${SYSBLK#/sys/block/}
+      DISKPNUM=$(echo $DISK | /bin/busybox tr -d [:alpha:] 2>/dev/null)  #( ${DISKPARTUUID#*-} ))
+      DISK=${DISK//$DISKPNUM}
+      # extract the partuuid information from partition table
+      if `is_substring_of "$DISK " "sr scd "`; then
+         DISK="$DISK$DISKPNUM"
+         DISKPNUM=""
+      fi
+      # DISKLABEL are the 32 bytes from : dd if=/dev/sr0 bs=1 skip=32808 count=32
+      # PARTUUIDs are hex numbers of certain partitions: MS-DOS Partition tables
+      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null)
+      if [ $? -eq 0 -a "$DISKID" != "" ]; then
+        PUUID=""
+        # reorder the words containing the partuuid 
+        BYTE1=${DISKID:8:4}
+        BYTE2=${DISKID:13:4}
+        PUUID="$BYTE2$BYTE1"
+        if [ "$PUUID" != "" ]; then
+          if [ "$DISKPNUM" != "" ]; then
+            if [ $DISKPNUM -lt 10 ]; then 
+              US="-0"
+            else
+              US="-"
+            fi
+          else
+            US=""
+          fi
+          echo "$PUUID$US$DISKPNUM"
+          return 0
+        else
+          echo ""
+          return 1
+        fi
+      fi
+      if [ "$DISKID" = "" ]; then
+        echo ""
+        return 1
+      fi
+    else
+      echo ""
+      return 1
+    fi
+  else
+    echo ""
+    return 1
+  fi
+}
+#
+get_label_from_optical_blockdevice()
+{
+  if [ "$1" != "" ]; then
+    local SYSBLK DISK DISKID DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
+    DISKPARTUUID=""
+    SYSBLK="$1"
+    if [ -e $SYSBLK ]; then
+      DISK=${SYSBLK#/dev/}
+      [ "$DISK" = "$SYSBLK" ] && DISK=${SYSBLK#/sys/block/}
+      DISKPNUM=$(echo $DISK | /bin/busybox tr -d [:alpha:] 2>/dev/null)  #( ${DISKPARTUUID#*-} ))
+      DISK=${DISK//$DISKPNUM}
+      # extract the partuuid information from partition table
+      if `is_substring_of "$DISK " "sr scd "`; then
+         DISK="$DISK$DISKPNUM"
+         DISKPNUM=""
+      fi
+      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=36904 count=32 2>/dev/null)
+      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=34856 count=32 2>/dev/null)
+      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=32808 count=32 2>/dev/null)
+      # DISKLABEL are the 32 bytes from : dd if=/dev/sr0 bs=1 skip=32808 count=32
+      # PARTUUIDs are hex numbers of certain partitions: MS-DOS Partition tables
+      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null)
+      if [ $? -eq 0 -a "$DISKID" != "" ]; then
+        PUUID=""
+        # reorder the words containing the partuuid 
+        BYTE1=${DISKID:8:4}
+        BYTE2=${DISKID:13:4}
+        PUUID="$BYTE2$BYTE1"
+        if [ "$PUUID" != "" ]; then
+          if [ "$DISKPNUM" != "" ]; then
+            if [ $DISKPNUM -lt 10 ]; then 
+              US="-0"
+            else
+              US="-"
+            fi
+          else
+            US=""
+          fi
+          echo "$PUUID$US$DISKPNUM"
+          return 0
+        else
+          echo ""
+          return 1
+        fi
+      fi
+      if [ "$DISKID" = "" ]; then
+        echo ""
+        return 1
+      fi
+    else
+      echo ""
+      return 1
+    fi
+  else
+    echo ""
+    return 1
+  fi
+}
 #

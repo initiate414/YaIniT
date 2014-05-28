@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for Universal INIT with busybox
-#  (C) Dieter Miosga , 2008-2014-05-01, dieter.miosga@gmx.de 
+#  (C) Dieter Miosga , 2008-2014-05-28, dieter.miosga@gmx.de 
 #
 #set -x
 #DELAY=delay
@@ -37,16 +37,80 @@ build_rootfs()
 bbversion_check()
 {
   local BBVER BBMAXVER BBMINVER
-  BBVER=`echo $(/bin/busybox  2>/dev/null) | /bin/busybox cut -f2 -d " " 2>/dev/null | /bin/busybox cut -c2-63   2>/dev/null `
-  BBMAXVER=`echo $BBVER | /bin/busybox cut -f1 -d.`
-  BBMINVER=`echo $BBVER | /bin/busybox cut -f2 -d.`
-  if [ $BBMINVER -lt 15 -o $BBMAXVER -lt 1 ]; then  
-    export ECHOTEXT="$ECHOTEXT
-$INITPREF Wrong version $BBVER of BusyBox , must be greater or equal 1.15!"
-    SYSERRPROMPT=yes
-    error2ash "fatal version error"
+  BBMINVER=""
+  BBMAXVER=""
+  BBVER=""
+  BBVER=$(/bin/busybox --help 2>/dev/null)
+  # version with creation date
+  BBVER=${BBVER:9:37}
+  if [ "$BBVER" != "" ]; then
+    BBMAXVER=${BBVER//.*}
+    BBVER=${BBVER#*.}
+    BBMINVER=${BBVER//.*}
+    if [ $BBMINVER -lt 18 -o $BBMAXVER -lt 1 ]; then  
+      export ECHOTEXT="$ECHOTEXT
+  $INITPREF Wrong version $BBVER of BusyBox , must be greater or equal 1.18!"
+      SYSERRPROMPT=yes
+      echo "$ECHOTEXT"
+      error2ash "fatal version error for busybox executable"
+      return 1
+    fi
+    return 0
+  else
+      export ECHOTEXT="$ECHOTEXT
+  $INITPREF Fatal configuration error for BusyBox , cannot read correctly system version !"
+      SYSERRPROMPT=yes
+      echo "$ECHOTEXT"
+      error2ash "fatal error for busybox executable"
+      return 1
   fi
-  return 0
+}
+#
+bbapplets_check()
+{
+  if [ "$MINIMAL_YAINIT_BBALIASES" != "" ]; then
+    local applet ALLBBAPPLETS RC
+    ALLBBAPPLETS=""
+    ALLBBAPPLETS=`/bin/busybox --list 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`
+    applet=""
+    if [ "$ALLBBAPPLETS" != "" ]; then
+      for applet in $MINIMAL_YAINIT_BBALIASES; do
+        if `is_not_substring_of " $applet " " $ALLBBAPPLETS "`; then
+          export ECHOTEXT="$ECHOTEXT
+$INITPREF Applet '$applet' not found in preconfigured BusyBox-Applets! "
+          SYSERRFATAL=yes
+          echo "$ECHOTEXT"
+          error2ash "fatal configuration error for busybox executable"
+          return 1
+        fi
+      done
+      export ECHOTEXT="$ECHOTEXT
+$INITPREF All necessary BusyBox - Applets found ! "
+      return 0
+    else
+      # in case of exception the more expensive way:
+      for applet in $MINIMAL_YAINIT_BBALIASES; do
+        RC=""
+        ALLBBAPPLETS=`/bin/busybox "$applet" --help 2>/dev/null`
+        RC=$?
+        if  [ $RC -ne 0 ] ; then
+          export ECHOTEXT="$ECHOTEXT
+$INITPREF Applet '$applet' not found in well preconfigured BusyBox-Applets!"
+          SYSERRFATAL=yes
+          echo "$ECHOTEXT"
+          error2ash "fatal configuration error for busybox executable"
+          return 1
+        fi
+      done
+      export ECHOTEXT="$ECHOTEXT
+$INITPREF All necessary BusyBox - Applets found ! "
+      return 0
+    fi
+  else 
+    export ECHOTEXT="$ECHOTEXT
+$INITPREF No minimal applet subset specified for BusyBox, continuing....."
+    return 1
+  fi
 }
 #
 set_bbsymlinks()
@@ -408,172 +472,6 @@ assign_init_variables()
   
 }
 #
-mount_procfs_sysfs()
-{
-  local MOUNTED
-
-  export PATH=$PATH:/usr/sbin:/usr/bin:/sbin:/bin:/:.
-  MOUNTED=""
-
-  if [ -e /proc/mounts ]; then
-    MOUNTED=`/bin/busybox cat /proc/mounts 2>/dev/null`
-  else
-    MOUNTED=`/bin/busybox mount 2>/dev/null`
-  fi
-  
-  if [ "$MOUNTED" = "" ]; then
-     /bin/busybox mkdir -p /proc    2>/dev/null
-     /bin/busybox mount -n -t proc proc /proc    2>/dev/null
-     /bin/busybox sync 2>/dev/null
-     /bin/busybox mkdir -p /sys   2>/dev/null
-     /bin/busybox mount -n -t sysfs sysfs /sys   2>/dev/null
-     /bin/busybox sync 2>/dev/null
-     /bin/busybox mount -o remount,rw -t rootfs rootfs /  2>/dev/null  
-     /bin/busybox sync 2>/dev/null
-     export ECHOTEXT="$ECHOTEXT
-$INITPREF mount commands issued for procfs, sysfs, rootfs, continuing...."
-  fi
-
-  #  now prove the iffy cases
-  if `is_not_string_in_file  "proc"  "/proc/mounts"`; then 
-      /bin/busybox mount -n -t proc proc /proc    2>/dev/null
-      if [ $? -ne 0 ]; then
-        #echoconsole "$1" " unable to mount /proc ,retrying ...."
-        /bin/busybox mkdir -p /proc    2>/dev/null
-        /bin/busybox mount -n -t proc proc /proc    2>/dev/null
-        if [ $? -ne 0 ]; then
-          export ECHOTEXT="$ECHOTEXT 
-$INITPREF unable to mount /proc: giving up." 
-	        #error2ash "$1"
-        fi
-      else
-        export ECHOTEXT="$ECHOTEXT 
-$INITPREF ...procfs /proc is up and mounted" 
-      fi 
-  fi
-
-  #
-  if `is_not_string_in_file  "sysfs"  "/proc/mounts"`; then   
-      /bin/busybox mount -n -t sysfs sysfs /sys   2>/dev/null
-      if [ $? -ne 0 ]; then
-        #3echoconsole "$1" " unable to mount /sys ,retrying ...."
-        /bin/busybox mkdir -p /sys   2>/dev/null
-        /bin/busybox mount -n -t sysfs sysfs /sys   2>/dev/null
-        if [ $? -ne 0 ]; then
-          export ECHOTEXT="$ECHOTEXT 
-$INITPREF unable to mount /sys: giving up."
-          #error2ash "$1"
-        fi
-      else
-        export ECHOTEXT="$ECHOTEXT 
-$INITPREF ...sysfs  /sys is up and mounted"
-      fi
-  fi
-
-  if `is_not_string_in_file  "rootfs"  "/proc/mounts"`; then 
-    # for the case rootfs in INITRAMFS is unaccessible or we forgot rw boot option 
-	  /bin/busybox mount  -o remount,rw -t rootfs rootfs /  2>/dev/null   
-	  if [ $? -ne 0 ]; then
-      export ECHOTEXT="$ECHOTEXT 
-$INITPREF unable to mount root / in  read-write mode!"
-	  fi
-  fi
-}
-#
-mount_debugfs()
-{
- local RC DEBUGFS
- # debugfs needs to be compiled in
- if  `is_string_in_file  "debugfs"  "/proc/filesystems" `; then 
-	/bin/busybox mkdir -p /sys/kernel  2>/dev/null
-	/bin/busybox mkdir -p /sys/kernel/debug  2>/dev/null
-	/bin/busybox mount -t debugfs  debugfs /sys/kernel/debug  2>/dev/null
-	RC=$?
-  export ECHOTEXT="$ECHOTEXT 
-$INITPREF Mounted debugfs at /sys/kernel/debug with '$RC'...."
- else
-  export ECHOTEXT="$ECHOTEXT 
-$INITPREF Unable to mount debugfs, kernel misconfigured !"
- fi
-}
-#
-mount_devtmpfs()
-{
-  local RC
-	/bin/busybox mkdir -p /dev   2>/dev/null
-	/bin/busybox mount -t devtmpfs devtmpfs /dev 2>/dev/null
-	RC=$?
-   export ECHOTEXT="$ECHOTEXT 
-$INITPREF Mounted devtmpfs at /dev with '$RC'...."
-
-  #/bin/busybox mdev -s 2>/dev/null
-  /bin/busybox sync 2>/dev/null
-  
-}
-#
-mount_shmfs()
-{
-  local RC
- # tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)
- if  `is_string_in_file  "tmpfs"  "/proc/filesystems"`; then 
-	/bin/busybox mkdir -p /dev/shm   2>/dev/null
-	/bin/busybox mount -t tmpfs -o rw,nosuid,nodev tmpfs /dev/shm 2>/dev/null
-	RC=$?
-   export ECHOTEXT="$ECHOTEXT 
-$INITPREF Mounted devtmpfs at /dev with '$RC'...."
- fi
-  
-}
-#
-mount_devpts()
-{
-  local RC
- if  `is_string_in_file  "devpts"  "/proc/filesystems"`; then 
-	/bin/busybox mkdir -p /dev/pts   2>/dev/null
-	/bin/busybox mount -t devpts -o rw,relatime   devpts   /dev/pts   2>/dev/null
-	RC=$?
-   export ECHOTEXT="$ECHOTEXT 
-$INITPREF Mounted devpts at /dev/pts with '$RC'...."
-   /bin/busybox sync 2>/dev/null
- fi
-  
-}
-#
-mount_hugetlbfs()
-{
- #hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime)
- if  `is_string_in_file  "hugetlbfs"  "/proc/filesystems"`; then 
-  /bin/busybox mkdir -p /dev/hugepages   2>/dev/null
-	/bin/busybox mount -t hugetlbfs -o rw,relatime   hugetlbfs /dev/hugepages  2>/dev/null
-	RC=$?
-   export ECHOTEXT="$ECHOTEXT 
-$INITPREF Mounted hugetlbfs at /dev/hugepages with '$RC'...."
-   /bin/busybox sync 2>/dev/null
- fi
-}
-#
-mount_filesystems()
-{
- #  clean rootfs mounting for chroot or switch_root 
-  /bin/busybox mount -t rootfs -o rw,remount /  2>/dev/null  
- 
-  # 
-  mount_procfs_sysfs "$1"
-  /bin/busybox sync 2>/dev/null
-  #
-
- #
- # The debugfs feature is normally not needed in initial boot
- # but some drivers with debugfs support compiled in need a mounted debugfs to load
- # For this case mount debugfs later.... 
- if [ "$DEBUG" != "" -o "$DEBUGFS" != "" ]; then
-  if  `is_not_string_in_file  "debugfs"  "/proc/mounts"`; then 
-    mount_debugfs
-    /bin/busybox sync 2>/dev/null
-  fi
- fi
-}
-#
 read_distrofiles()
 {
   local SYSDISTRO
@@ -715,7 +613,7 @@ probe_for_kernelmodule_tarball()
   fi
 }
 #
-is_not_up_rootdevice()
+is_not_up_rootdevice_old()
 {
   #set -x
   local DEVTREE RDEV SYSBLK rootdev sysblkdev sysdev dev PART
@@ -785,6 +683,92 @@ is_not_up_rootdevice()
   fi
   
 }
+
+# checks loop and ram devices as well!
+is_not_up_blockdevice()
+{
+  
+  local DEVTREE RDEV SYSBLK rootdev sysblkdev sysdev dev PART
+  rootdev=""
+  sysblkdev=""
+  sysdev=""
+  RDEV=""
+  if [ "$1" != "" ]; then
+    RDEV="$1"
+  else
+    return 127
+  fi  
+  sysblkdev=${RDEV#/dev/}
+  sysblkdev=$(echo $sysblkdev | /bin/busybox tr -d [:alpha:] 2>/dev/null)
+  sysblkdev=${RDEV//$sysblkdev}
+  sysblkdev=${sysblkdev#/dev/}
+  dev=""
+  SYSBLK=""
+  SYSBLK=$(/bin/busybox ls -1d /sys/block/* 2>/dev/null)
+  for dev in $SYSBLK ; do
+    dev=${dev#/sys/block/}
+    if [ "$dev" = "$sysblkdev" ]; then
+      sysdev=found
+      if [ "$(/bin/busybox ls -1 "$RDEV" 2>/dev/null)" = "$RDEV" ]; then
+       rootdev=found
+      fi
+    fi
+    if [ "$sysdev" = "found" -a "$rootdev" = "found"  ]; then break; fi
+  done
+  PART=""
+  RC=5
+  if [ "$sysdev" != "" -a "$rootdev" != ""  ]; then
+    # can I read the PARTUUID from the required rootdevice?
+    PART=$(/bin/busybox dd if=/dev/$sysblkdev  bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null)
+    RC=$?
+    if [ "$PART" != "" ]; then 
+      if [ $RC -eq 0 ]; then
+         PUUID=""
+         # reorder the words containing the partuuid 
+         BYTE1=${PART:8:4}
+         BYTE2=${PART:13:4}
+         PUUID="$BYTE2$BYTE1"
+         if [ "$PUUID" != "" ]; then 
+           export DISKUUID="$PUUID"
+           if [ "$2" = "setpartuuid" ]; then
+             PARTUUID="$PUUID-0"
+             PARTUUID=${PARTUUID}${RDEV#/dev/$sysblkdev}
+             export PARTUUID
+           fi
+         else
+           echoconsole "$INITPREF" "Warning: Error in assigning PartitionUUID " 
+         fi
+         return 1
+      else
+        return 0
+      fi
+    else
+      return 0
+    fi
+  else 
+    return 0
+  fi
+}
+#
+is_not_up_rootdevice()
+{
+  # does not export PARTUUID and DISKUUID !
+  if `is_not_up_blockdevice "$ROOTDEV" setpartuuid`; then
+    return 0
+  else
+    return 1
+  fi
+}
+#
+is_not_up_bootdevice()
+{
+  # does not export PARTUUID and DISKUUID !
+  if `is_not_up_blockdevice "$BOOTDEV"`; then
+    return 0
+  else
+    return 1
+  fi
+}
 # under construction
 wait_for_rootdevice()
 {
@@ -796,7 +780,6 @@ wait_for_rootdevice()
 parse_rootdevice_string()
 {
   # this function only parses, no contact to devices!!!!!
-  #set -x
   local ROOTVAR
   export UUID=""
   export LABEL=""
@@ -892,10 +875,8 @@ parse_rootdevice_string()
         ROOTDEV="PARTUUID=$PARTUUID"
       ;;
       # is there a shell variable specified before rootdevice's label or uuid declaration?
-      *=label=*|*=uuid=*)
-        #ROOTVAR="$(echo $ROOT | /bin/busybox cut -f1  -d "="  2>/dev/null)"
-        #ROOT="$(echo $ROOT | /bin/busybox cut -f2-  -d "="   2>/dev/null)"
-        # assign this variable and reparse
+      *=label=*|*=uuid=*|*=partuuid=*)
+        # assign the variable before the uuid/label spec and reparse
         ROOTVAR="$(echo ${ROOT//=*} | /bin/busybox tr [:lower:]  [:upper:]  2>/dev/null | /bin/busybox tr ".-" "_"  2>/dev/null)"
         ROOT=${ROOT#*=}
         eval "$ROOTVAR=\"$ROOT\"" 
@@ -906,12 +887,9 @@ parse_rootdevice_string()
         fi
       ;;
     esac
-    #[ "$ROOTDEV" != "" ] && boot_device_check
+
     export  ROOTDEV LABEL UUID PARTUUID DISKUUID PARTNUM
-  #else
-  #  ROOT="ask"
-  #  check_dialog_equipment
-  #  branch_2dialog
+
   fi
   
 }
@@ -920,8 +898,7 @@ parse_rootdevice_string()
 recognize_rootdevice()
 {
   local var BLKID DEVBOOT DEVROOT DEVROOT1 DEVROOT2
-  #set -x
-  #parse_rootdevice_string
+  var=""
   BLKID=""
   DEVBOOT=""
   DEVROOT=""
@@ -935,9 +912,6 @@ recognize_rootdevice()
       export ROOTDEV="$DEVROOT"
     else
       if [ "$PARTUUID" != "" ]; then
-        #BLKID=`get_partuuids`
-        #DEVROOT=`echo "$BLKID" | /bin/busybox grep "$DISKUUID" 2>/dev/null | /bin/busybox cut -f1 -d"|" 2>/dev/null`
-        #export ROOTDEV="/dev/$DEVROOT$(( $PARTNUM ))"
         DEVROOT=`get_blockdev_from_partuuid  "$PARTUUID"`
         if [ "$DEVROOT" != "" ]; then
           export ROOTDEV="$DEVROOT"
@@ -954,9 +928,8 @@ recognize_rootdevice()
       if [ "$DEVROOT1" != "" -o "$DEVROOT2" != "" ]; then
         if [ "$DEVROOT1" != "$DEVROOT2" ]; then
           echoconsole "$INITPREF"  "Warning: Specified UUID and LABEL do not match the same device! "
-          [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1"
-          [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2"
-          echoconsole "$INITPREF"  "Warning: Preferring to use the UUID before LABEL !"        
+          [ "$DEVROOT1" != "" ] && DEVROOT="$DEVROOT1" && echoconsole "$INITPREF"  "Warning: Using block device, recognized with LABEL, is not necessarily unique !"        
+          [ "$DEVROOT2" != "" ] && DEVROOT="$DEVROOT2" && echoconsole "$INITPREF"  "Warning: Preferring to use the UUID specified device before LABEL !"        
         else
           DEVROOT="$DEVROOT2"
           export ROOTDEV="$DEVROOT"          
@@ -998,20 +971,39 @@ recognize_rootdevice()
           if [ "$TYPE" != "" ]; then
              ROOTDEVTYPE="$TYPE"
           fi
-          [ "$DEVBOOT" != "" ]  && export ROOTDEV="$DEVBOOT"
+          [ "$DEVBOOT" != "" ]  && export ROOTDEV="$DEVBOOT" && echoconsole "$INITPREF" "Warning: Using block device, recognized with LABEL, is not necessarily unique !"
         fi
       fi
       export ROOTDEVTYPE UUID LABEL 
     fi
-    #set +x
     return 0
   else # rootdev=""
-    #set +x
      return 5
   fi  # rootdev
   
 }
-
+#
+verify_rootdevice()
+{
+  local var BLKID DEVBOOT DEVROOT DEVROOT1 DEVROOT2
+  if [ -e $ROOTDEV ]; then
+    if [ "$ROOTDEV" = "$ROOT" ]; then
+      if [ "$LABEL" = "" ]; then
+        :
+      fi
+      if [ "$UUID" = "" ]; then
+        :
+      fi
+      if [ "$PARTUUID" = "" ]; then
+        :
+      fi
+    else
+      :
+    fi
+  
+  fi
+}
+#
 recognize_rootdevice_old()
 {
     if [ "$ROOTDEV" != "" ]; then

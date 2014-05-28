@@ -1,5 +1,5 @@
 #  # written for # # ---- ! ---- / bin / busybox ash
-# (C) Dieter Miosga , 2009 through 2014-05-01
+# (C) Dieter Miosga , 2009 through 2014-05-28
 if [ "$QUIET" = "" ]; then
  echo "$INITPREF branch-block-functions being read in....."
 fi
@@ -190,10 +190,6 @@ fatal()
    /bin/busybox ash < /dev/console
 }
 
-
-
-
-
 read_initrdvar_file()
 {
    local VAR
@@ -233,8 +229,6 @@ read_initrdvar_file_old()
   fi
 }
 
-
-
 actualize_systime_criticals()
 {
    local NOW MIN SEC
@@ -246,8 +240,6 @@ actualize_systime_criticals()
    SYSTIME=$NOW
    #echo $SYSTIME $SYSTIMEPASSED
 }
-
-
 
 set_blkid_cmd()
 {
@@ -499,8 +491,6 @@ check_device()
    fi
    set +x
 }
-
-
 # this version works only with cetrain blkid volname and readlink *X*name commands
 check_device_blkid()
 {
@@ -568,8 +558,6 @@ check_device_blkid()
    fi
 
 }
-
-
 
 verify_device()
 {

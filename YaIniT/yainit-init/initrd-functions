@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for YaIniT Yet an almost universal INIT Tool with busybox
-#  (C) Dieter Miosga , 2008-2014-05-01
+#  (C) Dieter Miosga , 2008-2014-05-28
 #
 #echo   "[ initrd-functions ]: Being read in...."
 # read in necessary functions
@@ -14,17 +14,17 @@ check_for_branch()
   if [ "$BASENM" != ""  ]; then
     case "$BASENM" in
       ram)
-        echoconsole  "$1" " branching to YaIniT Live-Setup now...."
+        echoconsole  "$1" " branching to YaIniT Live-Setup in RAM now...."
         /bin/busybox sync
         BRANCHTO=ram
       ;;
       loop)
-        echoconsole  "$1" " continuing YaIniT for boot to blockdevice '$ROOTDEV' ..."
+        echoconsole  "$1" " continuing YaIniT for boot to loop blockdevice '$ROOTDEV' ..."
         /bin/busybox sync
         BRANCHTO=loop      
       ;;
       net)
-        echoconsole  "$1" " continuing YaIniT for boot to blockdevice '$ROOTDEV' ..."
+        echoconsole  "$1" " continuing YaIniT for boot to net blockdevice '$ROOTDEV' ..."
         /bin/busybox sync
         BRANCHTO=net
       ;;
@@ -94,7 +94,7 @@ check_for_ramboot_branch()
        echoconsole  "$1" " continuing..."
     fi
   else
-    echoconsole  "$1" " no parameter found for branching out with '$BRANCHTO' !"
+    echoconsole  "$1" " no parameter found for branching out !"
     echoconsole  "$1" " continuing..."    
   fi
 }
@@ -219,7 +219,7 @@ setup_configurations()
   #   2. read in system architecture parameters
   #   2. build root filesytem tree
   #   3. mount initial filesystems and assign variables
-  #   4. determine root device and set variables appropriately
+  #   4. assign root device and set variables appropriately
   #
   # now is the functionality in initrd-functions fully usable
   inline_external_file "yainitdefaults"
@@ -234,7 +234,8 @@ setup_configurations()
   #echoconsole  "$INITPREF" " Starting regular boot:"
   echofile   "$INITPREF" " Mount system directories amd make initramfs usable........ "
   ECHOTEXT=""
-  mount_filesystems "$INITPREF"
+  inline_external_file  "filesys-functions"
+  mount_filesystems     "$INITPREF"
   echoconsole "" "$ECHOTEXT"
 
   /bin/busybox sync
@@ -259,8 +260,9 @@ setup_configurations()
   set_shellvariables
   # now assign all the variables form kernel parameter cmdline
   read_cmdline
-  if [ "$NOCD" = "nocd" -a "$NOUSB" = "nousb" -a "$NOPCMCIA" = "nocpmcia" -a "$NONET" = "nonet" -a "$NOHD" = "nohd" ]; then
-     echoconsole "$INITPREF" "you selected boot parameters $NOHD $NOCD $NOUSB $NOPCMCIA $NONET "
+  # this is for now temporary, until we boot into RAM from initramdisk
+  if [ "$NOCD" = "nocd" -a "$NOUSB" = "nousb" -a "$NOPCMCIA" = "nocpmcia" -a "$NONET" = "nonet" -a "$NOHD" = "nohd" -a "$NOFW" = "nofw" ]; then
+     echoconsole "$INITPREF" "you selected boot parameters $NOHD $NOCD $NOUSB $NOPCMCIA $NONET $NOFW "
      echoconsole "$INITPREF" "and blocked therewith any further booting!"
      SYSERRPROMPT=yes
      error2ash   "$INITPREF"
@@ -268,7 +270,7 @@ setup_configurations()
   
   assign_init_variables
   parse_rootdevice_string
-   
+  
   [ "$INITDBG" != "" ] && export >> "$MSGFILE"
   if [ "$VERBOSE" != "" ]; then
     /bin/busybox cat "$MSGFILE"  2>/dev/null
@@ -351,7 +353,7 @@ setup_architecture_specifics()
 
    fi # noauto
    /bin/busybox sync
-
+  
   fi # -e arch-functions
 
 }
@@ -369,7 +371,10 @@ setup_system()
 
   setup_architecture_specifics
   /bin/busybox sync
-
+  if [ "$NOSWAP" = "" ]; then
+    check_for_zramswap
+  fi
+  /bin/busybox sync
   # clean up unused kernelmodules or too old kernelversions
   purge_unused_kernelmodules  "" "$INITPREF"
   /bin/busybox sync
@@ -459,11 +464,13 @@ initial_modules_load_defaults()
     if [ "`/bin/busybox ls -1 /lib/modules/$KERNVER/kernel  2>/dev/null`" != "" ]; then
      echoconsole  "$INITPREF" " Kernel modules found for '$KERNVER' at '/lib/modules/$KERNVER/kernel'  ...."
      echoconsole  "$INITPREF" " Creating module dependencies for $KERNVER ...."
-     /bin/busybox depmod  >/dev/null 2>&1
+     #/bin/busybox depmod  >/dev/null 2>&1
      /bin/busybox sync 2>/dev/null
      if [ "$MODPROBE_FUNCTIONS_READ" = "" ]; then
        inline_external_file "modprobe-functions"
      fi
+     check_for_depmod
+     /bin/busybox sync 2>/dev/null
      echoconsole  "$INITPREF" "Initial Kernel Module probing...."
      debug_busdevices "$MSGFILE" "before probing default pci drivers"
      set_blacklisted_modules
@@ -527,32 +534,8 @@ initial_modules_load_auto()
 
     if [ "`/bin/busybox ls -1 /lib/modules/$KERNVER/kernel  2>/dev/null`" != "" ]; then
      echoconsole  "$INITPREF" " Kernel modules found for '$KERNVER' at '/lib/modules/$KERNVER/kernel'  ...."
-     echoconsole  "$INITPREF" " Creating module dependencies for $KERNVER ...."
-     #
-     if [ "$MODPROBE_FUNCTIONS_READ" = "" ]; then
-       inline_external_file "modprobe-functions"
-       /bin/busybox mdev -s  2>/dev/null
-       /bin/busybox sync     2>/dev/null
-     fi
-     check_for_depmod
+  #
      
-     # kernelmodules need in some configurations the debugfs mounted to load
-     if  `is_not_string_in_file  "debugfs"  "/proc/mounts" `; then 
-       mount_debugfs
-       /bin/busybox sync 2>/dev/null
-     fi
-     if  [ "$DEVTMPFS" != "" ] ; then 
-       mount_devtmpfs
-       /bin/busybox sync 2>/dev/null
-     fi
-     if  [ "$DEVPTS" != "" ] ; then 
-       mount_devpts
-       /bin/busybox sync 2>/dev/null
-     fi
-     if  [ "$HUGETLBFS" != "" ] ; then 
-       mount_hugetlbfs
-       /bin/busybox sync 2>/dev/null
-     fi
      echoconsole  "$INITPREF" "Initial Kernel Module probing...."
      set_blacklisted_modules      
      #debug_busdevices "$MSGFILE" " initial state before probing stdpc drivers "
@@ -697,15 +680,13 @@ initial_modules_load_auto()
 #
 boot_on()
 {
-
   #
   #  PHASE 3
   #  set busybox symlinks for all applets
   #  load modules if any installed and access root device
   #
-
   # install symlinks for busybox AFTER all the customized and optimized files are there!
-  echoconsole  "$INITPREF" " Installing all symlinks for busybox....."
+  echoconsole    "$INITPREF" " Installing all symlinks for busybox....."
   set_bbsymlinks "$INITPREF"
   /bin/busybox sync
   # switch any overwritten /bin/ash or /sbin/ash files back to /bin/busybox
@@ -716,14 +697,49 @@ boot_on()
   /bin/busybox sync
 
   if [ "$NOMOD" = "" ]; then
-   if [ "$NOAUTO" != "" ]; then
-     initial_modules_load_defaults
-   else
-     initial_modules_load_auto
-   fi
+     if [ "$MODPROBE_FUNCTIONS_READ" = "" ]; then
+       inline_external_file "modprobe-functions"
+       /bin/busybox mdev -s  2>/dev/null
+       /bin/busybox sync     2>/dev/null
+     fi     
+     
+     check_for_depmod   
+     # kernelmodules need in some configurations the debugfs mounted to load
+     # if no debugfs compiled in , it does not hurt
+     if  `is_not_string_in_file  "debugfs"  "/proc/mounts" `; then 
+       mount_debugfs
+       /bin/busybox sync 2>/dev/null
+     fi
+     # the following only if explicitly specified by default or parameter
+     if  [ "$DEVTMPFS" != "" ] ; then 
+       mount_devtmpfs
+       /bin/busybox sync 2>/dev/null
+     fi
+     if  [ "$DEVPTS" != "" ] ; then 
+       mount_devpts
+       /bin/busybox sync 2>/dev/null
+     fi
+     if  [ "$HUGETLBFS" != "" ] ; then 
+       mount_hugetlbfs
+       /bin/busybox sync 2>/dev/null
+     fi
+     # load modules if any resident in INITRAMFS
+     if [ "$NOAUTO" != "" ]; then
+       initial_modules_load_defaults
+     else
+       initial_modules_load_auto
+     fi
+     if [ "$NOSWAP" = "" ]; then 
+       check_for_zramswap
+     fi
   fi
-
-  if [ "$INITDBG" != "" -o "$DEBUG" != ""  ]; then
+  # check busybox before entering debug prompt
+  if [ "$DEBUG" != "" -o "$INITDBG" != "" ]; then
+    bbversion_check
+    bbapplets_check
+  fi
+  
+  if [ "$DEBUG" != "" -o "$INITDBG" != "" ]; then
     echoconsole  "$INITPREF" " init parameters: '$INITPARAMETERS' "
     echoconsole  "$INITPREF" " before branching out of init... "
     debug_prompt "$INITPREF"
