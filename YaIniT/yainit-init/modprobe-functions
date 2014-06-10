@@ -1,7 +1,7 @@
 #
 #  MODPROBE-FUNCTIONS
 #  for Universal INIT with BusyBox
-#  (C) Dieter Miosga, 2008-2014-05-28
+#  (C) Dieter Miosga, 2008-2014-06-01
 #
 #echo   "modprobe-functions: Being read in...."
 #

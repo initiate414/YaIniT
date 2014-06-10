@@ -3,7 +3,7 @@
 #            installed system
 #            This requires that your kernel supports initramfs!!!
 #   This version is a complete workover from 2009 
-#   (c) Dieter Miosga 2009-06-01 through 2014-05-28
+#   (c) Dieter Miosga 2009-06-01 through 2014-06-01
 if [ "$ROOTDIR" = "" ]; then 
   ROOTDIR=/mnt
 fi
@@ -110,17 +110,6 @@ debug_shell
 
 
 if [ "$NOAUTO" = "" ]; then
-  #OPTED=`/bin/busybox bbconfig | /bin/busybox grep '$MAXCMDSET' 2>/dev/null` 
-  #if [ "$OPTED" = "" ]; then
-  #  echoconsole "$INITPREF" "BusyBox appears not to be optimized "
-  #fi
-  
-  #   is the running kernel the ultimate solution in optimization?
-  #if [ "$(echo $KERNVER | /bin/busybox grep "$EXTENT")" = ""  ]; then
-  
-  #set_kernver
-  #assign_kernver_vars
-  #if `is_substring_of "$EXTENT" "$KERNVER"`; then
   if [ "$EXTENT" = "$SUFFIXKERNVER" ]; then
     # if we have initrd variable correctly set at cmdline 
    if [ "$INITRD" = "" ]; then 
@@ -143,13 +132,6 @@ if [ "$NOAUTO" = "" ]; then
     elif [ -e "$BOOTINITRD" ]; then
       BOOTKERN="$(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)"
       BOOTKERN=`/bin/busybox find /$(/bin/busybox dirname $BOOTINITRD) -name   "vmlinuz-$BOOTKERN-$EXTENT"`
-  #  reboot disabled until kexec compilable as static
-  #    if [ "$BOOTKERN" != "" ]; then
-      #  reboot_hardware_optimized ""
-  #    ;
-  #    else
-   #     echolog "No kernel of type $(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)-$EXTENT found"
-   #   fi
     else
        echolog " No initrd $BOOTINITRD found in /boot/$INITRD for reboot with other kernel !"
     fi
@@ -159,12 +141,6 @@ if [ "$NOAUTO" = "" ]; then
       if [ -e "$BOOTINITRD" ]; then
          BOOTKERN="$(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)"
          BOOTKERN=`/bin/busybox find /$(/bin/busybox dirname $BOOTINITRD) -name "vmlinuz-$BOOTKERN-$EXTENT"`
-        # reboot disabled until kexec compilable as static
-        # if [ "$BOOTKERN" != "" ]; then
-        #  reboot_hardware_optimized ""
-        # else
-        #  echolog "No kernel of type $(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)-$EXTENT found"
-        # fi
       else
          echolog " No initrd found for reboot with other kernel !"
       fi 
@@ -180,7 +156,6 @@ fi #  !NOAUTO
 remount_rw()
 {
   if [ "`/bin/busybox grep "$ROOTDIR" </proc/mounts  2>/dev/null | /bin/busybox grep "ro," 2>/dev/null`" != "" ]; then
-	  #/bin/busybox   umount  $ROOTDIR    2>/dev/null
 	  /bin/busybox   mount   $MOUNTCMD -o rw,remount  $ROOTDEV  $ROOTDIR  2>/dev/null
   fi
 }
@@ -188,7 +163,6 @@ remount_rw()
 remount_ro()
 {
   if [ "`/bin/busybox grep "$ROOTDIR" </proc/mounts  2>/dev/null | /bin/busybox grep "rw," 2>/dev/null`" != "" ]; then
-	  #/bin/busybox  umount $ROOTDIR    2>/dev/null
 	  /bin/busybox   mount $MOUNTCMD -o ro,remount $ROOTDEV  $ROOTDIR  2>/dev/null
   fi
 }
@@ -327,7 +301,6 @@ else
 fi
 
 debug_shell
-#  wait_for_removable "$WAITFORROOT"
 # Switch to real root partition:
 MOUNTCMD=""
 echolog "mounting and accessing root at $ROOTDEV with $ROOTFS...." 
@@ -337,7 +310,6 @@ if [ "$ROOTFS" != "" ]; then
    MOUNTCMD=" -n -t $ROOTFS -o $MOUNTMODE,remount "
 else
    MOUNTCMD=" -n -o $MOUNTMODE,remount  "
-   #/bin/busybox mount  $MOUNTCMD  $ROOTDEV $ROOTDIR
 fi
 echolog "doing a : /bin/busybox mount  $MOUNTCMD $ROOTDEV $ROOTDIR  ......"
 /bin/busybox mount  $MOUNTCMD $ROOTDEV $ROOTDIR
@@ -504,37 +476,34 @@ if ! [ -e $ROOTDIR/dev/null ]; then
   fi
 fi
 #
+if [ "$MOUNTMODE" = "ro" ]; then
+   remount_ro
+fi
+#
 debug_shell
 #
 if [ "`/bin/busybox grep $ROOTDIR < /proc/mounts | /bin/busybox grep "rw," 2>/dev/null`" != "" ]; then
-  /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
-  /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
-  /bin/busybox cp -f $LOGFILE   $ROOTDIR/var/log 2>/dev/null
-  /bin/busybox cp -f $LOGFILE   $ROOTDIR  2>/dev/null
   if [ "$DEBUG" != "" ]; then
-    /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
+    [ "`/bin/busybox ls -1 /dbug*.log 2>/dev/null`" != "" ] &&
+    {
+      /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
+      /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
+      /bin/busybox cp -f $LOGFILE   $ROOTDIR/var/log 2>/dev/null
+      /bin/busybox cp -f $LOGFILE   $ROOTDIR  2>/dev/null
+      /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
+    }
+    [ "$MSGFILE" != "" ] && 
+    { 
+      /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
+      /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
+      /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
+    }
   fi
-  [ "$MSGFILE" != "" ] && 
-  { 
-    /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
-    /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
-    /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
-  }
-  #FSTABROOT="`/bin/busybox cat $ROOTDIR/etc/fstab 2>/dev/null | /bin/busybox grep " / "   2 >/dev/null`"
-  #FSTABROOTDEV="`/bin/busybox cat $ROOTDIR/etc/fstab 2>/dev/null | /bin/busybox grep "$ROOTDEV" 2>/dev/null`"
-  #if [ "$FSTABROOT" != "$FSTABROOTDEV" ]; then
-  #   /bin/busybox cp -f   $ROOTDIR/etc/fstab $ROOTDIR/etc/fstab.old 2>/dev/null
-  #   FSTABROOTDEV="`echo $FSTABROOT | /bin/busybox cut -f2- -d" " 2>/dev/null`"
-  #   echo "$ROOTDEV  $FSTABROOTDEV" > $ROOTDIR/etc/fstab
-  #   /bin/busybox cat $ROOTDIR/etc/fstab.old >> $ROOTDIR/etc/fstab
-  #fi
 else
   echolog "Booting in read-only mode'"
   echolog "not saving messagefiles and changes to target '$ROOTDEV'"
 fi
-if [ "$MOUNTMODE" = "ro" ]; then
-   remount_ro
-fi
+
 #
 if [ "$LAYERFS" = "unionfs"  ]; then 
    /bin/busybox mount  -o remount,rw /
@@ -573,7 +542,6 @@ if [ "$CHROOTBB" != "" -a "$ROOTSWITCH" = "chroot" ]; then
   cd   $ROOTDIR
   echolog "${INITRD} @DIR:`pwd`:  ...issuing command: exec  $CHROOTBB ./ $INIT $RUNLEVEL < dev/console > dev/console 2>&1"
   
-  #umount_all_filesystems
   debug_shell
   exec  $CHROOTBB  ./  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
   if [ $? -ne 0 ]; then 
@@ -583,7 +551,6 @@ if [ "$CHROOTBB" != "" -a "$ROOTSWITCH" = "chroot" ]; then
     exec  $CHROOTBB  ./  $INITBB  $RUNLEVEL  < dev/console > dev/console 2>&1
     exec $CHROOTBB  ./  etc/rc.d/rc.S   < dev/console > dev/console 2>&1
   fi
-  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
@@ -591,16 +558,13 @@ if [ "$SWITCHROOTBB" != "" -a "$ROOTSWITCH" = "switch_root" ]; then
   cd   $ROOTDIR
   echolog "${INITRD}:`pwd`:  ...issuing command: exec  $SWITCHROOTBB $ROOTDIR $INIT $RUNLEVEL <dev/console >dev/console 2>&1"
   
-  #umount_all_filesystems
   debug_shell
   exec  $SWITCHROOTBB   $ROOTDIR  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
   if [ $? -ne 0 ]; then 
     echolog "${INITRD}:  changing root to bootfilesystem $ROOTDIR not successfull, retrying....."
     cd   $ROOTDIR
     exec  $SWITCHROOTBB   $ROOTDIR  $INITBB  $RUNLEVEL  < dev/console > dev/console 2>&1
-    #exec $CHROOTBB  ./  etc/rc.d/rc.S   < dev/console > dev/console 2>&1
   fi
-  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
@@ -609,11 +573,9 @@ if [ -e $CHROOT -a "$ROOTSWITCH" = "chroot" ]; then
   cd   $ROOTDIR
   echolog "${INITRD} @DIR:`pwd`:  ...issuing command: exec  $CHROOT ./ $INIT $RUNLEVEL < dev/console > dev/console 2>&1"
   
-  #umount_all_filesystems
   debug_shell
   exec  $CHROOT  ./  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
   echolog "${INITRD}: failed chroot with system commands, falling back to busybox commands...."
-  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
@@ -621,12 +583,9 @@ if [ -e $SWITCHROOT -a "$ROOTSWITCH" = "switch_root" ]; then
   echolog "${INITRD}:  ....switching root with $SWITCHROOT to bootfilesystem $ROOTDIR at $ROOTDEV"
   cd  $ROOTDIR
   debug_shell
-  #umount_all_filesystems
   
   exec $SWITCHROOT -c /dev/console $ROOTDIR  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
   echolog "${INITRD}: failed switch_root with system commands, falling back to busybox commands...."
-  #exec /bin/busybox switch_root -c /dev/console $ROOTDIR  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
-  #mount_filesystems "$INITPREF"
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin 
 fi
 

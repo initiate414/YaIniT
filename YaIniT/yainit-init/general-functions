@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for Universal INIT with busybox
-#  (C) Dieter Miosga , 2008-2014-05-28, dieter.miosga@gmx.de
+#  (C) Dieter Miosga , 2008-2014-06-01, dieter.miosga@gmx.de
 #
 #set -x
 #
@@ -588,7 +588,7 @@ get_partuuid_from_blockdev()
 get_label_from_optical_blockdevice()
 {
   if [ "$1" != "" ]; then
-    local SYSBLK DISK DISKID DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
+    local SYSBLK DISK DISKID DISKLBL DISKPNUM DISKPARTUUID PUUID BYTE1 BYTE2
     DISKPARTUUID=""
     SYSBLK="$1"
     if [ -e $SYSBLK ]; then
@@ -601,9 +601,9 @@ get_label_from_optical_blockdevice()
          DISK="$DISK$DISKPNUM"
          DISKPNUM=""
       fi
-      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=36904 count=32 2>/dev/null)
-      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=34856 count=32 2>/dev/null)
-      DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=32808 count=32 2>/dev/null)
+      DISKLBL=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=36904 count=32 2>/dev/null)
+      [ "$DISKLBL" != "" ] || DISKLBL=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=34856 count=32 2>/dev/null)
+      [ "$DISKLBL" != "" ] || DISKLBL=$(/bin/busybox dd if=/dev/$DISK bs=1 skip=32808 count=32 2>/dev/null)
       # DISKLABEL are the 32 bytes from : dd if=/dev/sr0 bs=1 skip=32808 count=32
       # PARTUUIDs are hex numbers of certain partitions: MS-DOS Partition tables
       DISKID=$(/bin/busybox dd if=/dev/$DISK bs=1 count=4  skip=440 2>/dev/null | /bin/busybox hexdump  2>/dev/null)
@@ -629,6 +629,9 @@ get_label_from_optical_blockdevice()
           echo ""
           return 1
         fi
+      fi
+      if [ "$DISKLBL" != "" ]; then
+        export LABEL="$DISKLBL"
       fi
       if [ "$DISKID" = "" ]; then
         echo ""
