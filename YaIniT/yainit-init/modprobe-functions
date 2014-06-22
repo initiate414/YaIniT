@@ -1,7 +1,7 @@
 #
 #  MODPROBE-FUNCTIONS
 #  for Universal INIT with BusyBox
-#  (C) Dieter Miosga, 2008-2014-06-01
+#  (C) Dieter Miosga, 2008-2014-05-01
 #
 #echo   "modprobe-functions: Being read in...."
 #
@@ -1129,13 +1129,15 @@ set_initial_modules()
        MODULES2LOAD="$MODULES2LOAD atkbd psmouse usbkbd usbmouse usbhid hid_generic mousedev"
      fi
      if [ "$NOBT" = "" ]; then    
+       MODULES1=""
        if [ -e /proc/bus/input/devices ]; then
          if  `is_not_string_in_file  "eyboard" "/proc/bus/input/devices"` && [ "$NOKBD" = "" ]; then
-             MODULES2LOAD=" btusb bcm203x bpa10x bfusb st_drv bluetooth $MODULES2LOAD"
-         elif  `is_not_string_in_file  "ouse" "/proc/bus/input/devices"` && ["$NOMOUSE" = "" ]; then
-             MODULES2LOAD=" btusb bcm203x bpa10x bfusb st_drv bluetooth $MODULES2LOAD"
+             MODULES1="ath3k rfcomm bnep btusb cm203x bpa10x bfusb st_drv bluetooth"
+         elif  `is_not_string_in_file  "ouse" "/proc/bus/input/devices"` && [ "$NOMOUSE" = "" ]; then
+             MODULES1="ath3k rfcomm bnep btusb bcm203x bpa10x bfusb st_drv bluetooth"
          fi  
        fi
+       MODULES2LOAD="$MODULES1 $MODULES2LOAD "
      fi
    fi
    if [ "$NOHD" = "" ]; then

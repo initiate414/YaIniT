@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for Universal INIT with busybox
-#  (C) Dieter Miosga , 2008-2014-05-28, dieter.miosga@gmx.de 
+#  (C) Dieter Miosga , 2008-2014-05-13, dieter.miosga@gmx.de 
 #
 #set -x
 #DELAY=delay
@@ -752,7 +752,7 @@ is_not_up_blockdevice()
 #
 is_not_up_rootdevice()
 {
-  # does not export PARTUUID and DISKUUID !
+  # does export PARTUUID and DISKUUID !
   if `is_not_up_blockdevice "$ROOTDEV" setpartuuid`; then
     return 0
   else
@@ -779,7 +779,8 @@ wait_for_rootdevice()
 #
 parse_rootdevice_string()
 {
-  # this function only parses, no contact to devices!!!!!
+  # this function only parses in RAM, no contact to devices!!!!!
+  #set -x
   local ROOTVAR
   export UUID=""
   export LABEL=""
@@ -792,6 +793,20 @@ parse_rootdevice_string()
         ROOTDEV="ask"
         check_dialog_equipment
         branch_2dialog        
+      ;;
+    # any information for root device specified in fields with separator ':'?
+      *:*:*)
+        ROOT=${ROOT%:*}
+        ROOTFS=${ROOTVAR%:*}
+        ROOTFS=${ROOTVAR#$ROOTFS:}
+        export ROOT ROOTFS
+        parse_rootdevice_string
+      ;;
+      *:*)
+        ROOT=${ROOT//:*}
+        ROOTFSTYPE=${ROOTVAR#*:}
+        export ROOT ROOTFSTYPE
+        parse_rootdevice_string
       ;;
       # the Slackware, Puppylinux, .... cases
       /dev/hd*|/dev/sd*|/dev/sr*|/dev/mmcblk*|/dev/cdrom*|/dev/dvdrom*|/dev/cdram*|/dev/dvdram*)

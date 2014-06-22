@@ -1,9 +1,8 @@
 #
-# /blockdevrc:  init script to load kernel modules from an initramfs and boot
+# /devblockrc:  init script to switch rootfs from an initramfs and boot
 #            installed system
 #            This requires that your kernel supports initramfs!!!
-#   This version is a complete workover from 2009 
-#   (c) Dieter Miosga 2009-06-01 through 2014-06-01
+#   (c) Dieter Miosga 2009-06-01 through 2014-05-13
 if [ "$ROOTDIR" = "" ]; then 
   ROOTDIR=/mnt
 fi
@@ -71,10 +70,33 @@ if [ "$ROOT" != "" ]; then
     i=$(( $i + 1 ))
   done
   #
-  # fallback if still none is found
+  # In case the regular busybox applets blkid, findfs, ....
+  # are failing:  only busybox dd is used 
   if [ "$ROOTDEV" = "" ]; then
     ROOTDEV="$ROOTDEVOLD"
     echolog  "Rereading and waiting for it to come up...."
+    parse_rootdevice_string
+    set_disk_parameters
+    for DEV in $PARTDEVS; do
+      TOK=LABEL_$DEV
+      eval ylabel="\$$TOK"
+      if [ "$LABEL" = "$ylabel" ]; then
+        ROOTDEV=/dev/$DEV
+        echolog "found by label '$ylabel': up and readable rootfilesystem device '$ROOTDEV' "  
+        break
+      else
+        echolog "disklabel '$ylabel' of '/dev/$DEV' is not in '$ROOT'..."
+      fi
+      TOK=PUUID_$DEV
+      eval ylabel="\$$TOK"
+      if [ "$PARTUUID" = "$ylabel" ]; then
+        ROOTDEV=/dev/$DEV
+        echolog "found by partuuid '$ylabel': up and readable rootfilesystem device '$ROOTDEV' "  
+        break
+      else
+        echolog "partition-uuid '$ylabel' of '/dev/$DEV' is not in '$ROOT'..."
+      fi
+    done
   else
     echolog ".... found: up and readable rootfilesystem device '$ROOTDEV' "  
   fi 
@@ -91,7 +113,7 @@ else
     echolog  "Interactive use specified, entering prompt: "
     boot_device_dialog
   elif [ "$ROOTDEV" = "" ]; then
-    echolog  "No root parameter specified, entering prompt: "
+    echolog  "No root parameter specified, entering unconditional prompt: "
     boot_device_dialog
   fi
 fi 
@@ -110,6 +132,7 @@ debug_shell
 
 
 if [ "$NOAUTO" = "" ]; then
+
   if [ "$EXTENT" = "$SUFFIXKERNVER" ]; then
     # if we have initrd variable correctly set at cmdline 
    if [ "$INITRD" = "" ]; then 
@@ -132,6 +155,13 @@ if [ "$NOAUTO" = "" ]; then
     elif [ -e "$BOOTINITRD" ]; then
       BOOTKERN="$(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)"
       BOOTKERN=`/bin/busybox find /$(/bin/busybox dirname $BOOTINITRD) -name   "vmlinuz-$BOOTKERN-$EXTENT"`
+  #  reboot disabled until kexec compilable as static
+  #    if [ "$BOOTKERN" != "" ]; then
+      #  reboot_hardware_optimized ""
+  #    ;
+  #    else
+   #     echolog "No kernel of type $(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)-$EXTENT found"
+   #   fi
     else
        echolog " No initrd $BOOTINITRD found in /boot/$INITRD for reboot with other kernel !"
     fi
@@ -141,6 +171,12 @@ if [ "$NOAUTO" = "" ]; then
       if [ -e "$BOOTINITRD" ]; then
          BOOTKERN="$(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)"
          BOOTKERN=`/bin/busybox find /$(/bin/busybox dirname $BOOTINITRD) -name "vmlinuz-$BOOTKERN-$EXTENT"`
+        # reboot disabled until kexec compilable as static
+        # if [ "$BOOTKERN" != "" ]; then
+        #  reboot_hardware_optimized ""
+        # else
+        #  echolog "No kernel of type $(echo $KERNVER | /bin/busybox cut -f1 -d- 2>/dev/null)-$EXTENT found"
+        # fi
       else
          echolog " No initrd found for reboot with other kernel !"
       fi 
@@ -156,6 +192,7 @@ fi #  !NOAUTO
 remount_rw()
 {
   if [ "`/bin/busybox grep "$ROOTDIR" </proc/mounts  2>/dev/null | /bin/busybox grep "ro," 2>/dev/null`" != "" ]; then
+	  #/bin/busybox   umount  $ROOTDIR    2>/dev/null
 	  /bin/busybox   mount   $MOUNTCMD -o rw,remount  $ROOTDEV  $ROOTDIR  2>/dev/null
   fi
 }
@@ -163,6 +200,7 @@ remount_rw()
 remount_ro()
 {
   if [ "`/bin/busybox grep "$ROOTDIR" </proc/mounts  2>/dev/null | /bin/busybox grep "rw," 2>/dev/null`" != "" ]; then
+	  #/bin/busybox  umount $ROOTDIR    2>/dev/null
 	  /bin/busybox   mount $MOUNTCMD -o ro,remount $ROOTDEV  $ROOTDIR  2>/dev/null
   fi
 }
@@ -301,13 +339,14 @@ else
 fi
 
 debug_shell
+#  wait_for_removable "$WAITFORROOT"
 # Switch to real root partition:
 MOUNTCMD=""
 echolog "mounting and accessing root at $ROOTDEV with $ROOTFS...." 
 #echo 0x0100 > /proc/sys/kernel/real-root-dev
 if [ "$MOUNTMODE" = "" ]; then MOUNTMODE=ro; fi
-if [ "$ROOTFS" != "" ]; then
-   MOUNTCMD=" -n -t $ROOTFS -o $MOUNTMODE,remount "
+if [ "$ROOTFSTYPE" != "" ]; then
+   MOUNTCMD=" -n -t $ROOTFSTYPE -o $MOUNTMODE,remount "
 else
    MOUNTCMD=" -n -o $MOUNTMODE,remount  "
 fi
@@ -476,34 +515,31 @@ if ! [ -e $ROOTDIR/dev/null ]; then
   fi
 fi
 #
+debug_shell
+#
 if [ "$MOUNTMODE" = "ro" ]; then
    remount_ro
 fi
-#
-debug_shell
-#
+
 if [ "`/bin/busybox grep $ROOTDIR < /proc/mounts | /bin/busybox grep "rw," 2>/dev/null`" != "" ]; then
+  /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
+  /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
+  /bin/busybox cp -f $LOGFILE   $ROOTDIR/var/log 2>/dev/null
+  /bin/busybox cp -f $LOGFILE   $ROOTDIR  2>/dev/null
   if [ "$DEBUG" != "" ]; then
-    [ "`/bin/busybox ls -1 /dbug*.log 2>/dev/null`" != "" ] &&
-    {
-      /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
-      /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
-      /bin/busybox cp -f $LOGFILE   $ROOTDIR/var/log 2>/dev/null
-      /bin/busybox cp -f $LOGFILE   $ROOTDIR  2>/dev/null
-      /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
-    }
-    [ "$MSGFILE" != "" ] && 
-    { 
-      /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
-      /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
-      /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
-    }
+    /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
   fi
+  [ "$MSGFILE" != "" ] && 
+  { 
+    /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
+    /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
+    /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
+  }
+
 else
   echolog "Booting in read-only mode'"
   echolog "not saving messagefiles and changes to target '$ROOTDEV'"
 fi
-
 #
 if [ "$LAYERFS" = "unionfs"  ]; then 
    /bin/busybox mount  -o remount,rw /
@@ -541,7 +577,7 @@ stop_tracing
 if [ "$CHROOTBB" != "" -a "$ROOTSWITCH" = "chroot" ]; then
   cd   $ROOTDIR
   echolog "${INITRD} @DIR:`pwd`:  ...issuing command: exec  $CHROOTBB ./ $INIT $RUNLEVEL < dev/console > dev/console 2>&1"
-  
+
   debug_shell
   exec  $CHROOTBB  ./  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
   if [ $? -ne 0 ]; then 
@@ -551,19 +587,21 @@ if [ "$CHROOTBB" != "" -a "$ROOTSWITCH" = "chroot" ]; then
     exec  $CHROOTBB  ./  $INITBB  $RUNLEVEL  < dev/console > dev/console 2>&1
     exec $CHROOTBB  ./  etc/rc.d/rc.S   < dev/console > dev/console 2>&1
   fi
+
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
 
 if [ "$SWITCHROOTBB" != "" -a "$ROOTSWITCH" = "switch_root" ]; then
   cd   $ROOTDIR
   echolog "${INITRD}:`pwd`:  ...issuing command: exec  $SWITCHROOTBB $ROOTDIR $INIT $RUNLEVEL <dev/console >dev/console 2>&1"
-  
+
   debug_shell
   exec  $SWITCHROOTBB   $ROOTDIR  $INIT  $RUNLEVEL  < dev/console > dev/console 2>&1
   if [ $? -ne 0 ]; then 
     echolog "${INITRD}:  changing root to bootfilesystem $ROOTDIR not successfull, retrying....."
     cd   $ROOTDIR
     exec  $SWITCHROOTBB   $ROOTDIR  $INITBB  $RUNLEVEL  < dev/console > dev/console 2>&1
+    #exec $CHROOTBB  ./  etc/rc.d/rc.S   < dev/console > dev/console 2>&1
   fi
   export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 fi
@@ -572,7 +610,7 @@ fi
 if [ -e $CHROOT -a "$ROOTSWITCH" = "chroot" ]; then
   cd   $ROOTDIR
   echolog "${INITRD} @DIR:`pwd`:  ...issuing command: exec  $CHROOT ./ $INIT $RUNLEVEL < dev/console > dev/console 2>&1"
-  
+
   debug_shell
   exec  $CHROOT  ./  $INIT $RUNLEVEL  < dev/console > dev/console 2>&1
   echolog "${INITRD}: failed chroot with system commands, falling back to busybox commands...."
