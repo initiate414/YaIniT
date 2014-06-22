@@ -136,7 +136,7 @@ remove_drivers()
    DRIVER=""
 
    for DRIVER in $DRIVERS; do
-     if [ "$DEBUG" != "" ]; then
+     if [ "$INITDBG" != "" ]; then
        remove_kernelmodule_debug "$DRIVER"
      else
        remove_kernelmodule "$DRIVER"
@@ -160,7 +160,7 @@ probe_drivers()
      DRIVERS="` echo $DRIVERS | /bin/busybox tr "-" "_" 2>/dev/null`"
    fi
     DRIVER=""
-    if [ "$DEBUG" != "" ]; then
+    if [ "$INITDBG" != "" ]; then
       for DRIVER in $DRIVERS; do
         probe_kernelmodule_debug "$DRIVER"
       done
@@ -1388,7 +1388,7 @@ kernelmodules_autoload()
   for mod in $MODULES_ORDER; do
     mod=`echo $mod | /bin/busybox tr "-" "_" 2>/dev/null`
     if `is_substring_of  " $mod " " $MODULES2LOAD "` ; then
-      if [ "$DEBUG" != "" ]; then
+      if [ "$INITDBG" != "" ]; then
         probe_kernelmodule_debug "$mod"
         #/bin/busybox mdev -s 2>/dev/null
         #/bin/busybox sync 2>/dev/null
@@ -1409,7 +1409,7 @@ kernelmodules_load()
   # we absolutely need here global string variables:
   # MODULES2LOAD : all modules recognized and ordered from lspci/modalias to load for local machine 
   for mod in $MODULES2LOAD; do
-      if [ "$DEBUG" != "" ]; then
+      if [ "$INITDBG" != "" ]; then
         probe_kernelmodule_debug "$mod"
       else
         probe_kernelmodule "$mod"

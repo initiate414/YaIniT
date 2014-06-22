@@ -1,6 +1,6 @@
 #
 #  File system funcions for YaIniT Universal INIT with busybox
-#  (C) Dieter Miosga , 2008-2014-05-28, dieter.miosga@gmx.de 
+#  (C) Dieter Miosga , 2008-2014-05-13, dieter.miosga@gmx.de 
 #
 #set -x
 #DELAY=delay
@@ -521,7 +521,7 @@ mount_filesystems()
  # The debugfs feature is normally not needed in initial boot
  # but some drivers with debugfs support compiled in need a mounted debugfs to load
  # For this case mount debugfs later.... 
- if [ "$DEBUG" != "" -o "$DEBUGFS" != "" ]; then
+ if [ "$DEBUG" != "" -a "$NODEBUGFS" = "" ]; then
   if  `is_not_string_in_file  "debugfs"  "/proc/mounts"`; then 
     mount_debugfs
     /bin/busybox sync 2>/dev/null

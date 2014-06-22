@@ -2,7 +2,7 @@
 # /devblockrc:  init script to switch rootfs from an initramfs and boot
 #            installed system
 #            This requires that your kernel supports initramfs!!!
-#   (c) Dieter Miosga 2009-06-01 through 2014-05-13
+#   (c) Dieter Miosga 2009-06-01 through 2014-06-21
 if [ "$ROOTDIR" = "" ]; then 
   ROOTDIR=/mnt
 fi
@@ -10,7 +10,7 @@ fi
 
 export PATH=$PATH:$ROOTDIR/bin:$ROOTDIR/sbin:$ROOTDIR/usr/bin:$ROOTDIR/usr/sbin
 
-[ "$DEBUG" != "" ] && export
+[ "$INITDBG" != "" ] && export
 debug_shell
 
 check_kernel_config
@@ -74,6 +74,7 @@ if [ "$ROOT" != "" ]; then
   # are failing:  only busybox dd is used 
   if [ "$ROOTDEV" = "" ]; then
     ROOTDEV="$ROOTDEVOLD"
+    echolog  "Rootfilesystem device not correctly detetcted!"
     echolog  "Rereading and waiting for it to come up...."
     parse_rootdevice_string
     set_disk_parameters
@@ -82,7 +83,7 @@ if [ "$ROOT" != "" ]; then
       eval ylabel="\$$TOK"
       if [ "$LABEL" = "$ylabel" ]; then
         ROOTDEV=/dev/$DEV
-        echolog "found by label '$ylabel': up and readable rootfilesystem device '$ROOTDEV' "  
+        echolog "found by label '$ylabel': up and accessible rootfilesystem device '$ROOTDEV' "  
         break
       else
         echolog "disklabel '$ylabel' of '/dev/$DEV' is not in '$ROOT'..."
@@ -91,14 +92,14 @@ if [ "$ROOT" != "" ]; then
       eval ylabel="\$$TOK"
       if [ "$PARTUUID" = "$ylabel" ]; then
         ROOTDEV=/dev/$DEV
-        echolog "found by partuuid '$ylabel': up and readable rootfilesystem device '$ROOTDEV' "  
+        echolog "found by partuuid '$ylabel': up and accessible rootfilesystem device '$ROOTDEV' "  
         break
       else
         echolog "partition-uuid '$ylabel' of '/dev/$DEV' is not in '$ROOT'..."
       fi
     done
   else
-    echolog ".... found: up and readable rootfilesystem device '$ROOTDEV' "  
+    echolog ".... found: up and accessible rootfilesystem device '$ROOTDEV' "  
   fi 
   #
   # set up root by dialog if missing cmdline parameter
@@ -522,19 +523,12 @@ if [ "$MOUNTMODE" = "ro" ]; then
 fi
 
 if [ "`/bin/busybox grep $ROOTDIR < /proc/mounts | /bin/busybox grep "rw," 2>/dev/null`" != "" ]; then
-  /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
-  /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
-  /bin/busybox cp -f $LOGFILE   $ROOTDIR/var/log 2>/dev/null
-  /bin/busybox cp -f $LOGFILE   $ROOTDIR  2>/dev/null
-  if [ "$DEBUG" != "" ]; then
-    /bin/busybox cp -f  /debug*.log  $ROOTDIR  2>/dev/null
-  fi
-  [ "$MSGFILE" != "" ] && 
-  { 
+  if [ "$INITDBG" != "" -a $INITDBG -ge 3 ]; then 
+    /bin/busybox mkdir -p $ROOTDIR/var      2>/dev/null
+    /bin/busybox mkdir -p $ROOTDIR/var/log   2>/dev/null
+    /bin/busybox dmesg >>  $MSGFILE   2>/dev/null
     /bin/busybox cp -f $MSGFILE   $ROOTDIR/var/log  2>/dev/null
-    /bin/busybox cp -f $MSGFILE   $ROOTDIR   2>/dev/null
-    /bin/busybox dmesg >>  $ROOTDIR/$MSGFILE   2>/dev/null
-  }
+  fi 
 
 else
   echolog "Booting in read-only mode'"

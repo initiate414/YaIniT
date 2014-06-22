@@ -1,6 +1,6 @@
 #
 #  INIT-FUNCTIONS for YaIniT Yet an almost universal INIT Tool with busybox
-#  (C) Dieter Miosga , 2008-2014-05-28
+#  (C) Dieter Miosga , 2008-2014-05-13
 #
 #echo   "[ initrd-functions ]: Being read in...."
 # read in necessary functions
@@ -419,7 +419,7 @@ setup_system()
 #
 debug_busdevices()
 {
-  if [ "$DEBUG" != "" ]; then
+  if [ "$DEBUG" != "" -a "$INITDBG" != "" ]; then
     echo "$INITPREF" "$2" >> $1
     #echo "$INITPREF" "Output from 'ls -1R * ' " >> $1
     #/bin/busybox ls -1 /sys   >>  $1
@@ -477,7 +477,7 @@ initial_modules_load_defaults()
      probe_standardpc_drivers
      /bin/busybox mdev -s  2>/dev/null
      /bin/busybox sync     2>/dev/null
-     if [ "$DEBUG" != "" ]; then
+     if [ "$DEBUG" != "" -o "$INITDBG" !=  "" ]; then
        debug_busdevices "$MSGFILE" "debuggiing for input device drivers "     
        /bin/busybox sleep 2
        if `is_not_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
@@ -574,7 +574,7 @@ initial_modules_load_auto()
      if  `is_string_in_file  "eyboard" "/proc/bus/input/devices" `; then
        SYSERRPROMPT=yes
      fi
-     if [ "$DEBUG" != "" ]; then
+     if [ "$DEBUG" != "" -o "$INITDBG" != "" ]; then
          /bin/busybox mdev -s  2>/dev/null
          /bin/busybox sync     2>/dev/null
          /bin/busybox sleep 2
@@ -626,7 +626,7 @@ initial_modules_load_auto()
         SYSERRPROMPT=yes
      fi
      #
-     if [ "$DEBUG" != "" ]; then
+     if [ "$DEBUG" != "" -o "$INITDBG" != ""  ]; then
        /bin/busybox mdev -s  2>/dev/null
        /bin/busybox sync     2>/dev/null
        /bin/busybox sleep 2

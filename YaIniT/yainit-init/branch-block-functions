@@ -1,5 +1,5 @@
 #  # written for # # ---- ! ---- / bin / busybox ash
-# (C) Dieter Miosga , 2009 through 2014-05-28
+# (C) Dieter Miosga , 2009 through 2014-05-13
 if [ "$QUIET" = "" ]; then
  echo "$INITPREF branch-block-functions being read in....."
 fi
@@ -87,7 +87,7 @@ DEVICELIST=""
 BLKIDTIMEOUT="3"
 CHROOT=""
 CHROOTBB=""
-DEBUG_IS_ENABLED="$DEBUG"
+DEBUG_IS_ENABLED="$INITDBG"
 
 
 # this will be replaced by build script, so never change the following line!

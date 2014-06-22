@@ -22,7 +22,7 @@ echoconsole()
   #SCRIPT="$(echo $1 | /bin/busybox tr -d "\/" 2>/dev/null)"
   [ "$SCRIPT" = "" ] && SCRIPT="$1"
   # set quiet parameter on cmdline to stop any system messages from init script
-  if [ "$DEBUG" != "" ]; then  echofile "$SCRIPT" "$2"; fi 
+  if [ "$INITDBG" != "" ]; then  echofile "$SCRIPT" "$2"; fi 
   if [ "$QUIET" = "" ]; then echo "$SCRIPT $2 "; fi
   if [ "$DELAY" != "" ]; then /bin/busybox usleep $SYSWAIT 2>/dev/null; fi
 }
@@ -87,7 +87,7 @@ debug_prompt()
 #
 debug_mark()
 {
-  if [ "$DEBUG" != "" -a "$SYSERRPROMPT" != "" ]; then
+  if [ "$INITDBG" != "" -a "$SYSERRPROMPT" != "" ]; then
     debug_prompt "$1"
   fi
 }
