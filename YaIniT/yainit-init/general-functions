@@ -771,7 +771,7 @@ set_disk_parameters()
   OLDMAINDEV=""
   PUUID=""
   PNUM=1
-  BLOCKDISKS="`/bin/busybox ls -1d /sys/block/sd*/sd* 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
+  #BLOCKDISKS="`/bin/busybox ls -1d /sys/block/sd*/sd* 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
   BLOCKDEVS="`/bin/busybox ls -1d /sys/block/sd* 2>/dev/null | /bin/busybox tr "\n" " " 2>/dev/null`"
   for DEV in $BLOCKDEVS; do
     PARTDEV="`/bin/busybox basename $DEV 2>/dev/null`"

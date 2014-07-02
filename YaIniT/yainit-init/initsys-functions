@@ -428,6 +428,9 @@ assign_uuidlabel()
      uuid=*)
        D="/dev/disk/by-uuid/${D#*=}" #`echo $D | /bin/busybox   cut -f2- -d '='  2>/dev/null`"
      ;;
+     partuuid=*)
+       D="/dev/disk/by-partuuid/${D#*=}" #`echo $D | /bin/busybox   cut -f2- -d '='  2>/dev/null`"
+     ;;
      #$DISKID=*)
      #  D="/dev/disk/by-id/`echo $D | /bin/busybox   cut -f2- -d '='  2>/dev/null`"
      #;;
@@ -809,11 +812,11 @@ parse_rootdevice_string()
         parse_rootdevice_string
       ;;
       # the Slackware, Puppylinux, .... cases
-      /dev/hd*|/dev/sd*|/dev/sr*|/dev/mmcblk*|/dev/cdrom*|/dev/dvdrom*|/dev/cdram*|/dev/dvdram*)
+      /dev/hd*|/dev/sd*|/dev/sr*|/dev/mmcblk*|/dev/cdrom*|/dev/dvdrom*|/dev/cdram*|/dev/dvdram*|/dev/scd*)
         ROOTDEV=${ROOTVAR}
         PARTNUM=$(echo $ROOTDEV | /bin/busybox tr -d [:alpha:] 2>/dev/null)
       ;;
-      hd*|sd*|sr*|mmcblk*|cdrom*|dvdrom*|cdram*|dvdram*)
+      hd*|sd*|sr*|mmcblk*|scd*|cdrom*|dvdrom*|cdram*|dvdram*)
         ROOTDEV="/dev/$ROOTVAR"
         PARTNUM=$(echo $ROOTDEV | /bin/busybox tr -d [:alpha:] 2>/dev/null)
       ;;
@@ -953,7 +956,7 @@ recognize_rootdevice()
     fi
     if [ "$DEVROOT" = "" ]; then
       [ "$BLKID" != "" ] || BLKID=`/bin/busybox blkid 2>/dev/null`
-      DEVROOT=`echo "$BLKID" | /bin/busybox grep "UUID=\"$UUID\"" 2>/dev/null `
+      DEVROOT=`echo "$BLKID" | /bin/busybox grep "UUID=\"$UUID\"" 2>/dev/null`
       if [ "$DEVROOT" != "" ]; then        
         for var in $DEVROOT; do
           case $var in
@@ -962,7 +965,7 @@ recognize_rootdevice()
               export $var
             ;;
             /*/*:)
-              DEVBOOT=${var//:*}
+              DEVBOOT=${var%:}
             ;;
           esac
         done
@@ -979,7 +982,7 @@ recognize_rootdevice()
                 eval "$var"
               ;;
               /*/*:)
-                DEVBOOT=${var//:*}
+                DEVBOOT=${var%:}
               ;;
             esac
           done
@@ -1010,13 +1013,17 @@ verify_rootdevice()
         :
       fi
       if [ "$PARTUUID" = "" ]; then
-        :
+        PARTUUID=`get_partuuid_from_blockdev  $ROOTDEV 2>/dev/null`
       fi
     else
       :
     fi
-  
+    return 0
   fi
+  set_disk_parameters
+  parse_rootdevice_string
+  recognize_rootdevice
+  return 1
 }
 #
 recognize_rootdevice_old()
