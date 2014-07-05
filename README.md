@@ -7,7 +7,12 @@ Version 0.1
 Project created at 2014-03-30 on https://github.com/initiate414/
 by Dieter Miosga
 
-Changes:
+2014-07-05
+Withdrawn by the author for reasons of professional attacks 
+beyond the civil law against the personal integrity of his person
+
+
+ChangeLog:
 --------
 
 2014-05-28 : 
