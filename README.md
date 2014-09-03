@@ -7,7 +7,8 @@ Version 0.1
 Project created at 2014-03-30 on https://github.com/initiate414/
 by Dieter Miosga
 
-2014-09-03
+2014-09-03:
+
 
 Last possible financial support was cut with the following message:
 
@@ -87,24 +88,36 @@ If you want an alternative or own INIT for your system's startup,
 get yourself through the following projects and informations. 
 
 They made it! 
+  
+  http://en.wikipedia.org/wiki/Init
 
-http://en.wikipedia.org/wiki/Init
-systemd   :  https://github.com/systemd/systemd
-upstart   :  http://upstart.ubuntu.com/
-sysvinit  :  http://savannah.nongnu.org/projects/sysvinit
-u-root    :  https://github.com/rminnich/u-root
-OpenRC    :  https://github.com/OpenRC/openrc
+  systemd   :  https://github.com/systemd/systemd
+
+  upstart   :  http://upstart.ubuntu.com/
+
+  sysvinit  :  http://savannah.nongnu.org/projects/sysvinit
+
+  u-root    :  https://github.com/rminnich/u-root
+
+  OpenRC    :  https://github.com/OpenRC/openrc
+
 
 2014-07-05
 Withdrawn by the author for reasons of professional attacks 
 beyond the civil law against the personal integrity of his person
 
 
+
+
 ChangeLog:
 --------
 
+2014-09-03 :
+deleted the binary- and patchsets-branches 
+continued and published work until 2014-07-05
+
 2014-05-28 : 
-resvised scripts with some new functions
+revised scripts with some new functions
 
 
 2014-04-30 :
