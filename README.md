@@ -12,7 +12,7 @@ by Dieter Miosga
 
 Last possible financial support was cut with the following message:
 
-####################################################################
+-----------------------------------------------------------------------------------------------------
 X-Account-Key: account2
 X-UIDL: 0LkB1C-1Y0ZYF1qBO-00c91L
 X-Mozilla-Status: 0001
@@ -80,7 +80,7 @@ Kind regards
 
 Adrian Gschwend & the CH Open Source Awards Jury
 
-#############################################################################
+--------------------------------------------------------------------------------------
 
 
 
