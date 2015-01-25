@@ -1,3 +1,11 @@
+This Project has moved to :
+
+https://github.com/yainit/
+
+For any further information,
+Contact the author under dieter.miosga@gmx.de
+
+
 YaIniT
 ======
 Version 0.1
