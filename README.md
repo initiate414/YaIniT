@@ -34,9 +34,13 @@ Version 0.2
 
 The effort to create an almost universal init system to boot into GNU/Linux
 distributions with using only 
-1) BusyBox and the therein contained Almquist Shell (ASh)
-2) an unified Linux kernel that should be runnable under all commonly forked and rather open distributions
-3) a defined toolchain, recognizable by links or downloadable from this site
+
+1)  BusyBox and the therein contained Almquist Shell (ASh)
+
+2)  an unified Linux kernel with a n unified configuration, both should be runnable 
+under all greater and frequently forked, rather open distributions
+
+3)  a defined toolchain, recognizable by links or downloadable from this site
 
 
 Project created at 2014-03-30 on https://github.com/initiate414/
@@ -47,15 +51,15 @@ continued at 2015-01-25 on https://github.com/yainit
 ChangeLog of the initial version 0.1:
 =====================================
 
-@2015-01-25:
+@2015-01-25: 
 Renewed project publication and created branches for easier download
 
 
-@2014-09-03:
+@2014-09-03: 
 deleted the binary- and patchsets-branches 
 continued and published work until 2014-07-05
 
-@2014-09-03:
+@2014-09-03: 
 My application for the 2014 Swiss Open Source Award was answered with: 
 
 ----------------------------------------------------------------------------
@@ -115,7 +119,7 @@ They made it!
   OpenRC    :  https://github.com/OpenRC/openrc
 
 
-@2014-07-05:
+@2014-07-05: 
 Withdrawn by the author for reasons of professional attacks 
 beyond the civil law against the personal integrity of his person
 
@@ -124,10 +128,10 @@ beyond the civil law against the personal integrity of his person
 revised scripts with some new functions
 
 
-@2014-04-30:
+@2014-04-30: 
 some important changes and corrections
 
-@2014-04-22:
+@2014-04-22: 
 
 1) restructured online project with two more branches
     for being able downloading independently 
@@ -138,6 +142,7 @@ some important changes and corrections
 3) revised and corrected YaIniT scripts
     
 @2014-04-08: 
+
 1) added files: 
  
    vmlinuz-3.12.4.bfs4444yainitu-2se3   # test kernel with most modules optimized for SSE3-i686/prescott 
@@ -147,16 +152,15 @@ some important changes and corrections
    zp-3.12.4.bfs4444yainitu-2se3-xz.sfs  # squashfs with all modules to mount under /lib/modules/`uname -r`/kernel
    
    yatiny-2se3.gz    #  intrd file containing the squashfs with modules
-   
-2) applied some corrections for system filesystem management 
 
-    (procfs,sysfs,debugfs,hugtlbfs,tmpfs,shmfs,devtmpfs,devpts)
+2) applied some corrections for system filesystem management 
+(procfs,sysfs,debugfs,hugtlbfs,tmpfs,shmfs,devtmpfs,devpts)
 
 3)  applied some corrections to scripts
 
-4)  done some tests on automatic module loading 
-
-    kernel should boot now with grub1 into Mageia 3/4 , OpenSuSE-11.x/12.x/13.1, Ubuntu, Fedora
+4)  done some tests on automatic module loading
+kernel should boot now with grub-0.9x into:
+Mageia 3/4 , OpenSuSE-11.x/12.x/13.1, Ubuntu, Fedora
 
 
 @2014-04-02:
