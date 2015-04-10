@@ -62,7 +62,7 @@ continued and published work until 2014-07-05
 @2014-09-03: 
 My application for the 2014 Swiss Open Source Award was answered with: 
 
-----------------------------------------------------------------------------
+-------------------------------------------------------------------------
 
 Dear CH Open Source Award 2014 participant,
 
@@ -97,7 +97,9 @@ Thanks again
 Kind regards
 
 Adrian Gschwend & the CH Open Source Awards Jury
-------------------------------------------------------------------------------
+
+
+----------------------------------------------------------------------------
 
 
 
