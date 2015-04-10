@@ -1,26 +1,64 @@
-This Project has moved to :
-
+This project's contents have moved to :
 https://github.com/yainit/
 
+There is:
+
+documentation in branch  
+yainit/document
+
+kernel build sets in branch 
+yainit/kernels
+
+prebuild kernel binaries in branch 
+yainit/binaries
+
+initramfs and scripts in branch
+yainit/init
+
+some useful and general scripts in branch
+yainit/tools
+
+the used toolchain and BusyBox with patches in branch
+yainit/toolchain 
+
+
 For any further information,
-Contact the author under dieter.miosga@gmx.de
+Contact the author under dmiosga6200@gmail.com
 
 
-YaIniT
-======
-Version 0.1
+  YaIniT
+===========
+Version 0.2
 
 (Yet an almost universal INIT Tool)   A tool for initramfs setup and GNU/Linux booting 
 
+The effort to create an almost universal init system to boot into GNU/Linux
+distributions with using only 
+1) BusyBox and the therein contained Almquist Shell (ASh)
+2) an unified Linux kernel that should be runnable under all commonly forked and rather open distributions
+3) a defined toolchain, recognizable by links or downloadable from this site
+
+
 Project created at 2014-03-30 on https://github.com/initiate414/
 by Dieter Miosga
+continued at 2015-01-25 on https://github.com/yainit
 
-2014-09-03:
+
+ChangeLog of the initial version 0.1:
+=====================================
+
+@2015-01-25:
+Renewed project publication and created branches for easier download
 
 
-Last possible financial support was cut with the following reasoning :
+@2014-09-03:
+deleted the binary- and patchsets-branches 
+continued and published work until 2014-07-05
 
------------------------------------------------------------------------------------------------------
+@2014-09-03:
+My application for the 2014 Swiss Open Source Award was answered with: 
+
+----------------------------------------------------------------------------
 
 Dear CH Open Source Award 2014 participant,
 
@@ -55,8 +93,7 @@ Thanks again
 Kind regards
 
 Adrian Gschwend & the CH Open Source Awards Jury
-
---------------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 
 
@@ -78,28 +115,19 @@ They made it!
   OpenRC    :  https://github.com/OpenRC/openrc
 
 
-2014-07-05
+@2014-07-05:
 Withdrawn by the author for reasons of professional attacks 
 beyond the civil law against the personal integrity of his person
 
 
-
-
-ChangeLog:
---------
-
-2014-09-03 :
-deleted the binary- and patchsets-branches 
-continued and published work until 2014-07-05
-
-2014-05-28 : 
+@2014-05-28: 
 revised scripts with some new functions
 
 
-2014-04-30 :
+@2014-04-30:
 some important changes and corrections
 
-2014-04-22 :
+@2014-04-22:
 
 1) restructured online project with two more branches
     for being able downloading independently 
@@ -109,7 +137,7 @@ some important changes and corrections
       
 3) revised and corrected YaIniT scripts
     
-2014-04-08 : 
+@2014-04-08: 
 1) added files: 
  
    vmlinuz-3.12.4.bfs4444yainitu-2se3   # test kernel with most modules optimized for SSE3-i686/prescott 
@@ -131,13 +159,10 @@ some important changes and corrections
     kernel should boot now with grub1 into Mageia 3/4 , OpenSuSE-11.x/12.x/13.1, Ubuntu, Fedora
 
 
-2014-04-02 :
+@2014-04-02:
 done some corrections and minor logic changes 
 
-2014-03-31 :
+@2014-03-31:
 done some corrections and additions, experimented with git on github 
-
-
-  
 
 
