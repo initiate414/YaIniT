@@ -1,36 +1,10 @@
-This project's contents have moved to :
-https://github.com/yainit/
-
-There is:
-
-documentation in branch  
-yainit/document
-
-kernel build sets in branch 
-yainit/kernels
-
-prebuild kernel binaries in branch 
-yainit/binaries
-
-initramfs and scripts in branch
-yainit/init
-
-some useful and general scripts in branch
-yainit/tools
-
-the used toolchain and BusyBox with patches in branch
-yainit/toolchain 
-
-
-For any further information,
-Contact the author under dmiosga6200@gmail.com
-
-
   YaIniT
 ===========
 Version 0.2
 
-(Yet an almost universal INIT Tool)   A tool for initramfs setup and GNU/Linux booting 
+YaIniT stands for : Yet an almost universal INIT Tool
+
+A tool for initramfs setup and GNU/Linux booting 
 
 The effort to create an almost universal init system to boot into GNU/Linux
 distributions with using only 
@@ -45,15 +19,34 @@ under all greater and frequently forked, rather open distributions
 
 Project created at 2014-03-30 on https://github.com/initiate414/
 by Dieter Miosga
-continued at 2015-01-25 on https://github.com/yainit
+continued at 2015-12-11 on https://github.com/yainit/*
 
 
-ChangeLog of the initial version 0.1:
-=====================================
+ChangeLog since the initial version 0.1:
+========================================
+
+@2016-01-24: 
+Some corrections for ease and updates
+
+@2016-01-07: 
+Updated all files and patchsets for 3.19 and 4.3
+
+@2016-01-02: 
+Added Update for BusyBox
+
+@2015-12-11: 
+Renewed project publication after abandoning to get the justifying
+information for the continuously demanded fines
+
+@2015-05-22: 
+Withdrawn again and interrupted publication due to unexplainable fine action
+to my bankaccount, fulfilling an embargo case
+
+@2015-05-11: 
+Many changes and useful corrections to the init scripts and kernels
 
 @2015-01-25: 
 Renewed project publication and created branches for easier download
-
 
 @2014-09-03: 
 deleted the binary- and patchsets-branches 
@@ -145,17 +138,15 @@ some important changes and corrections
     
 @2014-04-08: 
 
-1) added files: 
- 
-   vmlinuz-3.12.4.bfs4444yainitu-2se3   # test kernel with most modules optimized for SSE3-i686/prescott 
-   
-   System.map-3.12.4.bfs4444yainitu-2se3  
+1)  added files: 
 
-   zp-3.12.4.bfs4444yainitu-2se3-xz.sfs  # squashfs with all modules to mount under /lib/modules/`uname -r`/kernel
-   
-   yatiny-2se3.gz    #  intrd file containing the squashfs with modules
+   - test kernel with most modules optimized for SSE3-i686/prescott 
 
-2) applied some corrections for system filesystem management 
+   - squashfs file with all modules to mount under /lib/modules/`uname -r`/kernel
+
+   - intrd file gzip-compressed, containing the squashfs with modules
+
+2)  applied some corrections for system filesystem management 
 (procfs,sysfs,debugfs,hugtlbfs,tmpfs,shmfs,devtmpfs,devpts)
 
 3)  applied some corrections to scripts
@@ -164,11 +155,9 @@ some important changes and corrections
 kernel should boot now with grub-0.9x into:
 Mageia 3/4 , OpenSuSE-11.x/12.x/13.1, Ubuntu, Fedora
 
-
 @2014-04-02:
 done some corrections and minor logic changes 
 
 @2014-03-31:
 done some corrections and additions, experimented with git on github 
-
 
