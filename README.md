@@ -25,6 +25,15 @@ continued at 2015-12-11 on https://github.com/yainit/*
 ChangeLog since the initial version 0.1:
 ========================================
 
+@2016-01-24: 
+Some corrections for ease and updates
+
+@2016-01-07: 
+Updated all files and patchsets for 3.19 and 4.3
+
+@2016-01-02: 
+Added Update for BusyBox
+
 @2015-12-11: 
 Renewed project publication after abandoning to get the justifying
 information for the continuously demanded fines
