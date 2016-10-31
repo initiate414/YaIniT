@@ -1,4 +1,4 @@
-  YaIniT
+    YaIniT
 ===========
 Version 0.2
 
@@ -11,7 +11,7 @@ distributions with using only
 
 1)  BusyBox and the therein contained Almquist Shell (ASh)
 
-2)  an unified Linux kernel with a n unified configuration, both should be runnable 
+2)  an unified Linux kernel with an unified configuration, both should be runnable 
 under all greater and frequently forked, rather open distributions
 
 3)  a defined toolchain, recognizable by links or downloadable from this site
@@ -24,6 +24,9 @@ continued at 2015-12-11 on https://github.com/yainit/*
 
 ChangeLog since the initial version 0.1:
 ========================================
+
+@2016-10-31:  
+Added patches and samples for kernel version 4.8
 
 @2016-01-24: 
 Some corrections for ease and updates
